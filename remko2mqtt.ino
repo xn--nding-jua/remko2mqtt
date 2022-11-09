@@ -1,11 +1,11 @@
 /*************************************************************************************
 remko2mqtt Interface for ESP8266
-v0.0.1 (c) 2022 Dr.-Ing. Christian Nöding
 Destination-Hardware: NodeMCU ESP8266 with optional W5500 Ethernet-Shield
+v0.0.1 (c) 2022 Dr.-Ing. Christian Nöding
 
 I'm not related to Remko and this software is not an official part of Remko.
-It is an attempt to improve the controllability of Remko internal parts. Don't
-bother Remko with problems that occur by using this software. Don't use this software
+It is an attempt to improve the controllability of Remko devices for private use. Don't
+bother Remko with problems that may occur by using this software. Don't use this software
 at all if you do not understand parts of it or if you are unsure what this piece
 of software is doing at all.
 
@@ -16,6 +16,45 @@ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TOR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
+Required Arduino-Libraries:
+===========================
+- Nick O'Leary, PubSubClient
+- Dirk Kaar, EspSoftwareSerial
+
+Hardware-Connection:
+====================
+As the GPIO15 (SPI CS) is wired to ESP8266 Flash to boot you have to put a
+4k7 resistor between GPIO15 and GND to let the ESP8266 boot correctly!
+
+D0 GPIO16      -> W5500 RST (Reset)
+D1 GPIO5  TxD  -> Software-UART (free)
+D2 GPIO4  RxD  <- Software-UART (free)
+D3 GPIO0  n/c (used by Flash-Chip)
+D4 GPIO2  TxD1 -> Hardware-UART1 (free, only TxD)
+D5 GPIO14      -> W5500 SCLK
+D6 GPIO12      -> W5500 MISO
+D7 GPIO13      -> W5500 MOSI
+D8 GPIO15      -> W5500 SCS (ChipSelect)
+RxD            <- Hardware-UART0 (free)
+TxD            -> Hardware-UART0 (free)
+GND
+3V3
+
+Additional links:
+=================
+The ESP8266 Arduino-Core has support for W5500- and other Ethernet-Chips since v3.0.2
+Information about using ESP8266 with ethernet (W5500, W5100 or ENC28J20):
+https://github.com/nopnop2002/esp8266_ethernet
+
+General information and schematics
+https://esp8266hints.wordpress.com/2018/02/13/adding-an-ethernet-port-to-your-esp-revisited/
+
+GitHub Code
+https://github.com/PuceBaboon/ESP-Now-Gateway
+
+GitHub Code of the WIZ Ethernet Library for ESP8266
+https://github.com/Wiznet/WIZ_Ethernet_Library
+
 **************************************************************************************/
 
 #include "Arduino.h"
@@ -23,6 +62,7 @@ DEALINGS IN THE SOFTWARE.
 #include <Ticker.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
+#include "config.h"
 #ifndef UseWiFi
   // use ethernet
   #include <SPI.h>
@@ -34,10 +74,6 @@ DEALINGS IN THE SOFTWARE.
 #include <ESP8266HTTPUpdateServer.h>
 #include <PubSubClient.h>
 
-// general things
-const char* versionstring = "v0.0.1 built on ";
-const char compile_date[] = __DATE__ " " __TIME__;
-
 #ifndef UseWiFi
   #define W5500_RESET_Pin 16
   #define CSPIN 15
@@ -48,30 +84,19 @@ const char compile_date[] = __DATE__ " " __TIME__;
 
 // Setup the WiFi
 #ifdef UseWiFi
-  const char* ssid = "MyVeryPrivateWiFiNetwork";
-  const char* password = "MyVeryPrivateWiFiNetworkPassword";
   WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
   bool WiFiAvailable = false;
 #endif
-
-#define UseStaticIP 1
-const char* host = "remko2mqtt";
-IPAddress local_IP(192, 168, 0, 42);
-IPAddress gateway(192, 168, 0, 1);
-IPAddress subnet(255, 255, 255, 0);
-IPAddress primaryDNS(192, 168, 0, 1);   //optional
-IPAddress secondaryDNS(1, 1, 1, 1); //optional
 
 WiFiClient mqttnetworkclient; // MQTT-Client
 ESP8266WebServer webserver(80); // HTTP-Server
 ESP8266HTTPUpdateServer httpupdater; // WebUpdater
 
 // MQTT definitions
-#define mqtt_id "remko2mqtt"
-#define mqtt_server "192.168.0.41"
-#define mqtt_serverport 1883
-const char *mqtt_mppt_topic = "remko/mxw/";
 PubSubClient mqttclient(mqttnetworkclient);
+
+// define Tickers
+Ticker TimerSeconds;
 
 // do a minimal webserver to give a sign of live :-)
 void handleRoot() {
