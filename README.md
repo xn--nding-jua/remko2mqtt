@@ -17,4 +17,4 @@ Nice-to-have feature will be:
 * bidirectional communication to readout the current temperature
 * read other parameters
 
-Start of project: 09.11.2022
+Start of project: 09.11.2022. Please feel free to support this project, but do not expect working code at this stage as this project is in an early stage.
