@@ -9,10 +9,11 @@ Current state of this project:
 - [x] Write code to emulate the necessary commands with 1800 Baud
 - [ ] Create an adapter-board using ESP8266 to emulate original interface-PCB (mainly a simple level-shift from 3V3 to 5V)
 - [ ] Enhance code to support more than one device addressed via MQTT-topic using multiple GPIOs
+- [ ] Discover the used protocol for XYE-connection to use RS485 with address-setting for supporting multiple devices
 - [ ] Reverse engineering of the communication-protocol of an original Remko Smart-Control WiFi-Stick to find more commands
 - [ ] Enhance the written ESP8266-program with discovered commands of original WiFi-Stick
 
-At the moment the following commands are supported:
+At the moment the following commands are supported via direct connection of ESP8266 to display-PCB (without using interface-PCB):
 * set device on/off
 * set operation mode (heating or cooling)
 * set desired temperature
