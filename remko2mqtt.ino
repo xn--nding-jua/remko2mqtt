@@ -73,6 +73,7 @@ https://github.com/Wiznet/WIZ_Ethernet_Library
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <PubSubClient.h>
+#include "remkocmd.h"
 
 #ifndef UseWiFi
   #define W5500_RESET_Pin 16
@@ -186,6 +187,8 @@ void TimerSecondsFcn() {
 void setup() {
   delay(1000);
 
+  Serial1.begin(1800); // start Data-Output on Serial1 using 1800 baud
+
   #ifndef UseWiFi
     init_eth();
   #endif
@@ -255,7 +258,9 @@ void HandleMQTT() {
     // subscribe to the desired topics
 	  mqttclient.subscribe("remko/mxw/set/powerstate");
 	  mqttclient.subscribe("remko/mxw/set/opmode");
-	  mqttclient.subscribe("remko/mxw/set/setpoint");
+    mqttclient.subscribe("remko/mxw/set/setpoint");
+    mqttclient.subscribe("remko/mxw/set/followme");
+    mqttclient.subscribe("remko/mxw/set/led");
   }else{
     // connected to MQTT-server
     mqttclient.loop(); // process incoming messages
@@ -277,13 +282,65 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
 
   if (strcmp(topic, "remko/mxw/set/powerstate")==0) {
     // set powerstate
+    if (strcmp((char*)payload, "0")==0) {
+      // turn off
+      Serial1.write(cmd_turnon, 20);
+      Serial1.write(cmd_turnon, 20);
+    }else if (strcmp((char*)payload, "1")==0) {
+      // turn on
+    }
   }
   
   if (strcmp(topic, "remko/mxw/set/opmode")==0) {
-    // set powerstate
+    // set operating-mode
+    switch (String((char*)payload).toInt()) {
+      case 0:
+        // AUTO
+        break;
+      case 1:
+        // COOL
+        break;
+      case 2:
+        // DRY
+        break;
+      case 3:
+        // HEAT
+        break;
+    }
   }
   
   if (strcmp(topic, "remko/mxw/set/setpoint")==0) {
-    // set powerstate
+    // set temperature
+    switch (String((char*)payload).toInt()) {
+      case 17:
+        break;
+      case 18:
+        break;
+      case 19:
+        break;
+      case 20:
+        break;
+      case 21:
+        break;
+      case 22:
+        break;
+      case 23:
+        break;
+      case 24:
+        break;
+    }
+  }
+
+  if (strcmp(topic, "remko/mxw/set/followme")==0) {
+    // enable/disable follow-me
+    if (strcmp((char*)payload, "0")==0) {
+      // turn off
+    }else if (strcmp((char*)payload, "1")==0) {
+      // turn on
+    }
+  }
+
+  if (strcmp(topic, "remko/mxw/set/led")==0) {
+    // toggle led
   }
 }
