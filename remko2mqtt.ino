@@ -190,6 +190,11 @@ void setup() {
   delay(1000);
 
   pinMode(D4, OUTPUT);
+  #ifdef InvertCommunication
+    digitalWrite(D4, LOW);
+  #else
+    digitalWrite(D4, HIGH);
+  #endif
 
   #ifndef UseWiFi
     init_eth();
@@ -237,11 +242,19 @@ uint8_t remko_cmd_pass = 0; // bitstream stopped
 void DoBitStreamStep() {
   if (remko_cmd_pass>0) {
     if (bitcounter<sizeof(cmd)*8) {
-      digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #ifdef InvertCommunication
+        digitalWrite(D4, !bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #else
+        digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #endif
       bitcounter+=1;
     }else{
       // we reached end of transmission
-      digitalWrite(D4, HIGH);
+      #ifdef InvertCommunication
+        digitalWrite(D4, LOW);
+      #else
+        digitalWrite(D4, HIGH);
+      #endif
       delayMicroseconds(BIT_TIME); // give last bit time
 
       if (remko_cmd_pass==1) {

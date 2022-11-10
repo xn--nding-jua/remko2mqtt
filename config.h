@@ -3,6 +3,8 @@
 const char* versionstring = "v0.1.0 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
 
+#define InvertCommunication 1
+
 #define UseWiFi 1
 
 #ifdef UseWiFi

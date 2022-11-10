@@ -17,9 +17,16 @@ const byte cmd_followmeoff[] = {0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0
 const byte cmd_led[] =         {0x0, 0xFF, 0xAE, 0xBB, 0xAE, 0xEB, 0xEA, 0xBA, 0xEE, 0xEE, 0xBA, 0xAE, 0xEA, 0xBA, 0xAE, 0xAB, 0xEB, 0xBA, 0xEE, 0xBA, 0xFE};
 byte cmd[] =                   {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
+#define InvertCommunication 1
+
 void setup() {
   Serial.begin(115200);
   pinMode(D4, OUTPUT);
+  #ifdef InvertCommunication
+    digitalWrite(D4, LOW);
+  #else
+    digitalWrite(D4, HIGH);
+  #endif
 }
 
 static const unsigned long REFRESH_INTERVAL = 1000; // ms
@@ -33,11 +40,19 @@ uint8_t remko_cmd_pass = 0; // bitstream stopped
 void DoBitStreamStep() {
   if (remko_cmd_pass>0) {
     if (bitcounter<sizeof(cmd)*8) {
-      digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #ifdef InvertCommunication
+        digitalWrite(D4, !bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #else
+        digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      #endif
       bitcounter+=1;
     }else{
       // we reached end of transmission
-      digitalWrite(D4, HIGH);
+      #ifdef InvertCommunication
+        digitalWrite(D4, LOW);
+      #else
+        digitalWrite(D4, HIGH);
+      #endif
       delayMicroseconds(BIT_TIME); // give last bit time
 
       if (remko_cmd_pass==1) {
