@@ -4,7 +4,7 @@ Control your Remko Air Conditioner via MQTT using an ESP8266
 The goal of this project is to control a Remko air conditioner (mainly the MXW-devices) via a cheap ESP8266-interface with MQTT and NodeRED without using the Remko Smart-Control WiFi-Stick. For this, several steps have been planned during the next few weeks:
 
 - [x] Reverse engineering of the original interface-PCB using the switchboard with the original 5-pin-cable (+5V, GND, XT and RCV)
-- [ ] Create an adapter-board using ESP8266 to emulate original interface-PCB to turn-on or off the device using MQTT
+- [ ] Create an adapter-board using ESP8266 to emulate original interface-PCB to turn-on or off the device
 - [ ] Reverse engineering of the communication-protocol of an original Remko Smart-Control WiFi-Stick
 - [ ] Enhance the written ESP8266-program with discovered commands of original WiFi-Stick
 
@@ -35,4 +35,4 @@ With my first measurements I got some information about the communication betwee
 
 ![image](https://user-images.githubusercontent.com/9845353/200953658-b8c471ee-0560-470b-b5ee-80029d5ff555.png)
 
-In the next step I will dive into the protocol and try to generate these signals with the ESP8266. It seems, that it is not a real communication-protocol, but only a predefined bit-toggle. I figured out, that each temperature-value the remote-command sends is stored as an individual bit-pattern - so each function of the Remko system seems to be coupled to an individual pattern. With this knowledge it should be possible to create an easy ESP8266-dongle that controls each MXW-device.
+I figured out, that Remko does not use a real communication-protocol, but only a predefined bit-toggle for each function. So each temperature-value of the remote-control has its individual bit-pattern. So I've implemented an Arduino-Test-Sketch to send this bit-pattern via a GPIO. I've already implemented the most-important functions (on/off, temperature-setpoint, operation-mode, etc.). Now I have to test the functions on the real device. If everything is working multiple devices can be controlled using one single ESP as we are only limited by the available GPIOs as we do not need a full UART.
