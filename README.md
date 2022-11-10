@@ -1,10 +1,11 @@
 # remko2mqtt
 Control your Remko Air Conditioner via MQTT using an ESP8266
 
-The goal of this project is to control a Remko air conditioner (mainly the MXW-devices) via a cheap ESP8266-interface with MQTT and NodeRED without using the Remko Smart-Control WiFi-Stick. For this, several steps have been planned during the next few weeks:
+The goal of this project is to control a Remko air conditioner (SKW, RVT, ATY, ML, MXW, RVD and RXT) via a cheap ESP8266-interface with MQTT and NodeRED without using the Remko Smart-Control WiFi-Stick and any weird Remko-Cloud-stuff and an additional mobile-phone app. For this, several steps have been planned during the next few weeks:
 
 - [x] Reverse engineering of the original interface-PCB using the switchboard with the original 5-pin-cable (+5V, GND, XT and RCV)
-- [ ] Create an adapter-board using ESP8266 to emulate original interface-PCB to turn-on or off the device
+- [x] Write code to emulate the necessary commands
+- [ ] Create an adapter-board using ESP8266 to emulate original interface-PCB (mainly a simple level-shift from 3V3 to 5V)
 - [ ] Reverse engineering of the communication-protocol of an original Remko Smart-Control WiFi-Stick
 - [ ] Enhance the written ESP8266-program with discovered commands of original WiFi-Stick
 
