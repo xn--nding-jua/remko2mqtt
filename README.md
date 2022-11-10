@@ -41,4 +41,13 @@ With my first measurements I got some information about the communication betwee
 
 ![image](https://user-images.githubusercontent.com/9845353/200953658-b8c471ee-0560-470b-b5ee-80029d5ff555.png)
 
-I figured out, that Remko does not use a "real" communication-protocol, but only a predefined bit-toggle for each function. So each temperature-value of the remote-control has its individual bit-pattern. I've implemented an Arduino-Test-Sketch to send this bit-pattern via a GPIO. I've already implemented the most-important functions (on/off, temperature-setpoint, operation-mode, etc.). Now I have to test the functions on the real device. If everything is working multiple devices can be controlled using one single ESP as we are only limited by the available GPIOs as we do not need a full UART.
+I figured out, that Remko does not use a "real" communication-protocol, but only a predefined bit-toggle for each function. So each temperature-value of the remote-control has its individual bit-pattern. I've implemented an Arduino-Test-Sketch to send this bit-pattern via a GPIO. I've already implemented the most-important functions (on/off, temperature-setpoint, operation-mode, etc.):
+```C
+// TurnOn
+{0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xAE, 0xBB, 0xBB, 0xBB, 0xAE, 0xAA, 0xEE, 0xAE, 0xAE, 0xAA, 0xBB, 0xEE, 0xFE}
+
+// TurnOff
+{0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xBA, 0xBB, 0xEB, 0xEE, 0xAA, 0xAE, 0xEE, 0xAE, 0xAA, 0xEA, 0xEE, 0xEE, 0xFE}
+```
+
+Now I have to test the functions on the real device. If everything is working multiple devices can be controlled using one single ESP as we are only limited by the available GPIOs as we do not need a full UART.
