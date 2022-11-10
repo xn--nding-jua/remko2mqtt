@@ -1,7 +1,8 @@
 # remko2mqtt
 Control your Remko Air Conditioner via MQTT using an ESP8266
 
-The goal of this project is to control a Remko air conditioner (SKW, RVT, ATY, ML, MXW, RVD and RXT) via MQTT and NodeRED without using the Remko Smart-Control WiFi-Stick and an additional mobile-phone app as the Stick only supports devices since 08/2021. This solution allows controlling even the old devices.
+The goal of this project is to control a Remko air conditioner (mainly the MXW, but maybe the SKW, RVT, ATY, ML, RVD or RXT, too) via MQTT and NodeRED without using the Remko Smart-Control WiFi-Stick and an additional mobile-phone app. As the Stick only supports devices since 08/2021 I was not able to use this option anyway. These devices are tested at the moment:
+- [x] MXW353 (manufactured in 2016)
 
 Current state of this project:
 - [x] Investigation of the original interface-PCB using the switchboard with the original 5-pin-cable (+5V, GND, XT and RCV) together with IR-controller
