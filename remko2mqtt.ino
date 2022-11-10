@@ -1,7 +1,7 @@
 /*************************************************************************************
 remko2mqtt Interface for ESP8266
 Destination-Hardware: NodeMCU ESP8266 with optional W5500 Ethernet-Shield
-v0.0.1 (c) 2022 Dr.-Ing. Christian Nöding
+v0.1.0 (c) 2022 Dr.-Ing. Christian Nöding
 
 I'm not related to Remko and this software is not an official part of Remko.
 It is an attempt to improve the controllability of Remko devices for private use. Don't
@@ -30,7 +30,7 @@ D0 GPIO16      -> W5500 RST (Reset)
 D1 GPIO5  TxD  -> Software-UART (free)
 D2 GPIO4  RxD  <- Software-UART (free)
 D3 GPIO0  n/c (used by Flash-Chip)
-D4 GPIO2  TxD1 -> Hardware-UART1, Remko MXW XT
+D4 GPIO2  TxD1 -> Hardware-UART1, Remko XT
 D5 GPIO14      -> W5500 SCLK
 D6 GPIO12      -> W5500 MISO
 D7 GPIO13      -> W5500 MOSI
@@ -354,11 +354,11 @@ void HandleMQTT() {
     mqttclient.connect(mqtt_id);
 
     // subscribe to the desired topics
-	  mqttclient.subscribe("remko/mxw/set/powerstate");
-	  mqttclient.subscribe("remko/mxw/set/opmode");
-    mqttclient.subscribe("remko/mxw/set/setpoint");
-    mqttclient.subscribe("remko/mxw/set/followme");
-    mqttclient.subscribe("remko/mxw/set/led");
+    mqttclient.subscribe(mqtt_topic_powerstate);
+    mqttclient.subscribe(mqtt_topic_opmode);
+    mqttclient.subscribe(mqtt_topic_setpoint);
+    mqttclient.subscribe(mqtt_topic_followme);
+    mqttclient.subscribe(mqtt_topic_led);
   }else{
     // connected to MQTT-server
     mqttclient.loop(); // process incoming messages
@@ -378,7 +378,7 @@ void PublishMQTT(char* pretopic, char* topic, float payload) {
 void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0'; // null-terminate byte-array
 
-  if (strcmp(topic, "remko/mxw/set/powerstate")==0) {
+  if (strcmp(topic, mqtt_topic_powerstate)==0) {
     // set powerstate
     if (strcmp((char*)payload, "0")==0) {
       // turn off
@@ -389,7 +389,7 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     }
   }
   
-  if (strcmp(topic, "remko/mxw/set/opmode")==0) {
+  if (strcmp(topic, mqtt_topic_opmode)==0) {
     // set operating-mode
     switch (String((char*)payload).toInt()) {
       case 0:
@@ -411,7 +411,7 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     }
   }
   
-  if (strcmp(topic, "remko/mxw/set/setpoint")==0) {
+  if (strcmp(topic, mqtt_topic_setpoint)==0) {
     // set temperature
     switch (String((char*)payload).toInt()) {
       case 17:
@@ -441,7 +441,7 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     }
   }
 
-  if (strcmp(topic, "remko/mxw/set/followme")==0) {
+  if (strcmp(topic, mqtt_topic_followme)==0) {
     // enable/disable follow-me
     if (strcmp((char*)payload, "0")==0) {
       // turn off
@@ -452,7 +452,7 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     }
   }
 
-  if (strcmp(topic, "remko/mxw/set/led")==0) {
+  if (strcmp(topic, mqtt_topic_led)==0) {
     // toggle led
     SendRemkoCmd(16);
   }

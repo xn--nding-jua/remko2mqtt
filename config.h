@@ -1,6 +1,6 @@
 
 // general software config
-const char* versionstring = "v0.0.1 built on ";
+const char* versionstring = "v0.1.0 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
 
 #define UseWiFi 1
@@ -32,4 +32,8 @@ const char* host = "remko2mqtt";
 #define mqtt_id "remko2mqtt"
 #define mqtt_server "192.168.0.41"
 #define mqtt_serverport 1883
-const char *mqtt_mppt_topic = "remko/mxw/";
+#define mqtt_topic_powerstate "remko/powerstate"
+#define mqtt_topic_opmode     "remko/opmode"
+#define mqtt_topic_setpoint   "remko/setpoint"
+#define mqtt_topic_followme   "remko/followme"
+#define mqtt_topic_led        "remko/led"
