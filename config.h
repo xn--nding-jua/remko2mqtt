@@ -3,7 +3,7 @@
 const char* versionstring = "v0.0.1 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
 
-//#define UseWiFi 1
+#define UseWiFi 1
 
 #ifdef UseWiFi
   // we are using WiFi connection

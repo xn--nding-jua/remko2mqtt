@@ -30,7 +30,7 @@ D0 GPIO16      -> W5500 RST (Reset)
 D1 GPIO5  TxD  -> Software-UART (free)
 D2 GPIO4  RxD  <- Software-UART (free)
 D3 GPIO0  n/c (used by Flash-Chip)
-D4 GPIO2  TxD1 -> Hardware-UART1 (free, only TxD)
+D4 GPIO2  TxD1 -> Hardware-UART1, Remko MXW XT
 D5 GPIO14      -> W5500 SCLK
 D6 GPIO12      -> W5500 MISO
 D7 GPIO13      -> W5500 MOSI
@@ -88,6 +88,8 @@ https://github.com/Wiznet/WIZ_Ethernet_Library
   WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
   bool WiFiAvailable = false;
 #endif
+
+byte cmd[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 WiFiClient mqttnetworkclient; // MQTT-Client
 ESP8266WebServer webserver(80); // HTTP-Server
@@ -187,7 +189,7 @@ void TimerSecondsFcn() {
 void setup() {
   delay(1000);
 
-  Serial1.begin(1800); // start Data-Output on Serial1 using 1800 baud
+  pinMode(D4, OUTPUT);
 
   #ifndef UseWiFi
     init_eth();
@@ -227,7 +229,103 @@ void setup() {
   #endif
 }
 
+static const unsigned long BIT_TIME = 550; // microseconds
+static unsigned long lastBitRefreshTime = 0;
+uint8_t bitcounter = 0; // bitstream stopped
+uint8_t remko_cmd_pass = 0; // bitstream stopped
+
+void DoBitStreamStep() {
+  if (remko_cmd_pass>0) {
+    if (bitcounter<sizeof(cmd)*8) {
+      digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+      bitcounter+=1;
+    }else{
+      // we reached end of transmission
+      digitalWrite(D4, HIGH);
+      delayMicroseconds(BIT_TIME); // give last bit time
+
+      if (remko_cmd_pass==1) {
+        // send same command second time
+        delayMicroseconds(BIT_TIME); // add additional bit
+        remko_cmd_pass=2;
+        bitcounter=0;
+      }else{
+        // stop transmission
+        remko_cmd_pass=0;
+        bitcounter=0;
+      }
+    }
+  }
+}
+
+void SendRemkoCmd(uint8_t CmdType) {
+  // load command
+  switch (CmdType) {
+    case 0:
+      memcpy(cmd, cmd_turnon, sizeof(cmd));
+      break;
+    case 1:
+      memcpy(cmd, cmd_turnoff, sizeof(cmd));
+      break;
+    case 2:
+      memcpy(cmd, cmd_auto, sizeof(cmd));
+      break;
+    case 3:
+      memcpy(cmd, cmd_cool, sizeof(cmd));
+      break;
+    case 4:
+      memcpy(cmd, cmd_dry, sizeof(cmd));
+      break;
+    case 5:
+      memcpy(cmd, cmd_heat, sizeof(cmd));
+      break;
+    case 6:
+      memcpy(cmd, cmd_17, sizeof(cmd));
+      break;
+    case 7:
+      memcpy(cmd, cmd_18, sizeof(cmd));
+      break;
+    case 8:
+      memcpy(cmd, cmd_19, sizeof(cmd));
+      break;
+    case 9:
+      memcpy(cmd, cmd_20, sizeof(cmd));
+      break;
+    case 10:
+      memcpy(cmd, cmd_21, sizeof(cmd));
+      break;
+    case 11:
+      memcpy(cmd, cmd_22, sizeof(cmd));
+      break;
+    case 12:
+      memcpy(cmd, cmd_23, sizeof(cmd));
+      break;
+    case 13:
+      memcpy(cmd, cmd_24, sizeof(cmd));
+      break;
+    case 14:
+      memcpy(cmd, cmd_followmeon, sizeof(cmd));
+      break;
+    case 15:
+      memcpy(cmd, cmd_followmeoff, sizeof(cmd));
+      break;
+    case 16:
+      memcpy(cmd, cmd_led, sizeof(cmd));
+      break;
+  }
+
+  // start bitstream-transmission
+  bitcounter = 0;
+  remko_cmd_pass = 1;
+}
+
 void loop() {
+  // output cmd-bitstream if we have bits to send
+  if (micros() - lastBitRefreshTime >= BIT_TIME) {
+    lastBitRefreshTime+=BIT_TIME;
+    DoBitStreamStep();
+  }
+
   #ifdef UseWiFi
   if (WiFiAvailable) {
   #else
@@ -284,10 +382,10 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     // set powerstate
     if (strcmp((char*)payload, "0")==0) {
       // turn off
-      Serial1.write(cmd_turnon, 20);
-      Serial1.write(cmd_turnon, 20);
+      SendRemkoCmd(1);
     }else if (strcmp((char*)payload, "1")==0) {
       // turn on
+      SendRemkoCmd(0);
     }
   }
   
@@ -296,15 +394,19 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     switch (String((char*)payload).toInt()) {
       case 0:
         // AUTO
+        SendRemkoCmd(2);
         break;
       case 1:
         // COOL
+        SendRemkoCmd(3);
         break;
       case 2:
         // DRY
+        SendRemkoCmd(4);
         break;
       case 3:
         // HEAT
+        SendRemkoCmd(5);
         break;
     }
   }
@@ -313,20 +415,28 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     // set temperature
     switch (String((char*)payload).toInt()) {
       case 17:
+        SendRemkoCmd(6);
         break;
       case 18:
+        SendRemkoCmd(7);
         break;
       case 19:
+        SendRemkoCmd(8);
         break;
       case 20:
+        SendRemkoCmd(9);
         break;
       case 21:
+        SendRemkoCmd(10);
         break;
       case 22:
+        SendRemkoCmd(11);
         break;
       case 23:
+        SendRemkoCmd(12);
         break;
       case 24:
+        SendRemkoCmd(13);
         break;
     }
   }
@@ -335,12 +445,15 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
     // enable/disable follow-me
     if (strcmp((char*)payload, "0")==0) {
       // turn off
+        SendRemkoCmd(14);
     }else if (strcmp((char*)payload, "1")==0) {
       // turn on
+        SendRemkoCmd(15);
     }
   }
 
   if (strcmp(topic, "remko/mxw/set/led")==0) {
     // toggle led
+    SendRemkoCmd(16);
   }
 }
