@@ -14,7 +14,11 @@ void ICACHE_RAM_ATTR GPIO_D1_ISR() {
   detachInterrupt(digitalPinToInterrupt(D1));
   lastBitRefreshTime=micros()+(BIT_TIME/2); // preload with half-bittime (=275us) to read bit in the middle
   // start statemachine for reading
-  remko_cmd_state = 1;
+  if (remko_cmd_state==0) {
+    remko_cmd_state = 1; // start reading command a
+  }else if (remko_cmd_state==2) {
+    remko_cmd_state = 3; // start reading command b
+  }
 }
 
 void remko_comm_readbit() {
@@ -34,9 +38,9 @@ void remko_comm_readbit() {
     // we reached end of the current command
 
     if (remko_cmd_state==1) {
-      remko_cmd_state=2; // set statemachine to next command
+      remko_cmd_state=2; // set statemachine to wait for next command
     }else{
-      remko_cmd_state=3; // stop statemachine and indicate, that we received two commands
+      remko_cmd_state=4; // stop statemachine and indicate, that we received two commands
     }
     
     bitcounter=0; // reset bitcounter
@@ -52,16 +56,15 @@ void setup() {
 }
 
 void loop() {
-  if ((remko_cmd_state>0) && (micros() - lastBitRefreshTime >= BIT_TIME)) {
-    // statemachine is running
+  if (((remko_cmd_state==1) || (remko_cmd_state==3)) && (micros() - lastBitRefreshTime >= BIT_TIME)) {
+    // statemachine is running for command 1 or 2
     lastBitRefreshTime+=BIT_TIME; // jump one full bit to the right for next bit
     remko_comm_readbit(); // read current bit
   }
-
-  if (remko_cmd_state==3) {
+  
+  if (remko_cmd_state==4) {
     // we received a new command
-
-	remko_cmd_state=0; // reset statemachine for next command
+    remko_cmd_state=0; // reset statemachine for next command
 
     Serial.println("We received some data:");
     Serial.println("CMD_A:");
