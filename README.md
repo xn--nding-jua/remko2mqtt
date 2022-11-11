@@ -20,6 +20,7 @@ With this Arduino-project you can control your Remko air conditioner (mainly the
 - [ ] Discover the used protocol for XYE-connection to use RS485 with address-setting for supporting multiple devices
 - [ ] Reverse engineering of the communication-protocol of an original Remko Smart-Control WiFi-Stick to find more commands
 - [ ] Enhance the written ESP8266-program with discovered commands of original WiFi-Stick
+- [ ] Test more devices (task for the community ;-) )
 
 At the moment the following commands are supported via direct connection of ESP8266 to display-PCB (without using interface-PCB):
 - [x] set device on/off
@@ -69,4 +70,4 @@ Electrical and timing-parameters are:
 
 <a name="outlook"></a>
 # Outlook
-It would be great to use the available RS485-connection on CON403 using the XYE-pins and the address-encoder to connect multiple device. Anyway, as the RS485 IC is connected to the microcontroller only unidirectional, we do not have any advantages except an easier connection when running long cables. For the moment the found soluation is sufficient for smaller installations with one to four devices within a smaller radius.
+It would be great to use the available RS485-connection on CON403 using the XYE-pins and the address-encoder to connect multiple device. Anyway, as the RS485 IC is connected to the microcontroller only unidirectional, we do not have any advantages except an easier connection when running long cables. For the moment the found solution is sufficient for smaller installations with one to four devices within a smaller radius.
