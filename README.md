@@ -38,7 +38,7 @@ To use this software with your own Remko-devices you have to compile the softwar
 Via MQTT the current settings will be published. As the communication with the air-conditioner is unidirectional these values get invalid if you are using the original IR-remote-control.
 
 The ESP8266 can be connected via a simple level-shifter-circuit using a BC337 transistor (or similar):
-![image](https://user-images.githubusercontent.com/9845353/201295543-9c11cb9e-491b-4f5e-9310-3ff14732d923.png)
+![image](https://user-images.githubusercontent.com/9845353/201296096-8c356c16-f7c0-4b75-8f3c-acfa146ce493.png)
 
 <a name="information"></a>
 # Information about the used communication-protocol
