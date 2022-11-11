@@ -21,11 +21,11 @@ byte cmd[] =                   {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
 
 void setup() {
   Serial.begin(115200);
-  pinMode(D4, OUTPUT);
+  pinMode(D1, OUTPUT);
   #ifdef InvertCommunication
-    digitalWrite(D4, LOW);
+    digitalWrite(D1, LOW);
   #else
-    digitalWrite(D4, HIGH);
+    digitalWrite(D1, HIGH);
   #endif
 }
 
@@ -41,17 +41,17 @@ void DoBitStreamStep() {
   if (remko_cmd_pass>0) {
     if (bitcounter<sizeof(cmd)*8) {
       #ifdef InvertCommunication
-        digitalWrite(D4, !bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+        digitalWrite(D1, !bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
       #else
-        digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
+        digitalWrite(D1, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
       #endif
       bitcounter+=1;
     }else{
       // we reached end of transmission
       #ifdef InvertCommunication
-        digitalWrite(D4, LOW);
+        digitalWrite(D1, LOW);
       #else
-        digitalWrite(D4, HIGH);
+        digitalWrite(D1, HIGH);
       #endif
       delayMicroseconds(BIT_TIME); // give last bit time
 
