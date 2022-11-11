@@ -61,6 +61,8 @@ void loop() {
   if (remko_cmd_state==3) {
     // we received a new command
 
+	remko_cmd_state=0; // reset statemachine for next command
+
     Serial.println("We received some data:");
     Serial.println("CMD_A:");
     for (int i=0; i<cmdlength; i++) {
