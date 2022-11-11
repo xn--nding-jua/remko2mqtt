@@ -23,18 +23,19 @@ With this Arduino-project you can control your Remko air conditioner (mainly the
 
 At the moment the following commands are supported via direct connection of ESP8266 to display-PCB (without using interface-PCB):
 - [x] set device on/off
-- [x] set operation mode (heating or cooling)
-- [x] set desired temperature
+- [x] set operation mode (Auto, heating, cooling, drying)
+- [x] set desired temperature (17°C ... 24°C)
 - [x] toggle led
 
 Future "nice-to-have" feature will be:
-- [ ] bidirectional communication to readout the current temperature
-- [ ] Follow-Me-Function for remote-temperature
-- [ ] read other parameters of device
+- [ ] bidirectional communication to readout the current temperature and maybe other information about the air-conditioner
+- [ ] Follow-Me-Function for remote-temperature (cmd is implemented, but untested. I fear the IR-remote will not send current temperature via RF when the command is sent by another device)
 
 <a name="software"></a>
 # Using the software
 To use this software with your own Remko-devices you have to compile the software using Arduino with installed ESP8266-support and PubSubClient-library. In the config.h you have to configure the software (IP-Addresses, MQTT-Server, and so on). You can choose between using WiFi or an ethernet-connection using the W5500-ethernet-shield. Furthermore you can select how many Remko-devices you'd like to use (at the moment up to four) and on which GPIO you want to output the commands. The IP-addresses and MQTT-topics can be set within the config.h, too. Finally, I've implemented an OTA-firmware-update-feature that allows you to update the firmware via the webpage. Just open the IP-address of the device with a browser, click on the button "Firmwareupgrade" and follow the instructions. A new firmware-binary can be created using Arduino using "Ctrl+Alt+S".
+
+Via MQTT the current settings will be published. As the communication with the air-conditioner is unidirectional these values get invalid if you are using the original IR-remote-control.
 
 The ESP8266 can be connected via a simple level-shifter-circuit using a BC337 transistor (or similar):
 ![image](https://user-images.githubusercontent.com/9845353/201294124-841eece7-cbb7-40e3-a969-25299c0f4f51.png)
