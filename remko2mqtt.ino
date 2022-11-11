@@ -1,7 +1,7 @@
 /*************************************************************************************
 remko2mqtt Interface for ESP8266
 Destination-Hardware: NodeMCU ESP8266 with optional W5500 Ethernet-Shield
-v0.1.0 (c) 2022 Dr.-Ing. Christian Nöding
+v1.0.0 (c) 2022 Dr.-Ing. Christian Nöding
 
 I'm not related to Remko and this software is not an official part of Remko.
 It is an attempt to improve the controllability of Remko devices for private use. Don't
@@ -19,26 +19,51 @@ DEALINGS IN THE SOFTWARE.
 Required Arduino-Libraries:
 ===========================
 - Nick O'Leary, PubSubClient
-- Dirk Kaar, EspSoftwareSerial
 
 Hardware-Connection:
 ====================
+To connect to Remko, please add a level-shifter for each XT-output:
+                      +5V
+                       |
+                      _|_
+                     |   |
+                     | 4 |
+                     | k |
+                     | 7 |
+                     |___|
+                       |
+                       |-------- to Remko display-PCB, "XT"
+                       |
+                   |  /
+    |---------|    | /
+----|   10k   |----|/ BC337 or similar
+    |---------|    |\
+                   | \|
+                     -|
+                      |
+                      |
+                     GND
+
+At the moment a maximum of 4 devices can be controlled by this software, but could be
+increased to more. The GPIO-pins can be changed using the config.h
+
+D0 GPIO16  -> W5500 RST (Reset)
+D1 GPIO5   -> Remko XT0 (Device 0)
+D2 GPIO4   -> Remko XT1 (Device 1)
+D3 GPIO0   -> (used by Flash-Chip)
+D4 GPIO2   -> free (this pin toggles when uploading new software to flash)
+D5 GPIO14  -> W5500 SCLK
+D6 GPIO12  -> W5500 MISO
+D7 GPIO13  -> W5500 MOSI
+D8 GPIO15  -> W5500 SCS (ChipSelect)
+RxD GPIO3  -> Remko XT2 (Device 2)
+TxD GPIO1  -> Remko XT3 (Device 3)
+GND
+3V3
+
 As the GPIO15 (SPI CS) is wired to ESP8266 Flash to boot you have to put a
 4k7 resistor between GPIO15 and GND to let the ESP8266 boot correctly!
 
-D0 GPIO16      -> W5500 RST (Reset)
-D1 GPIO5  TxD  -> Software-UART (free)
-D2 GPIO4  RxD  <- Software-UART (free)
-D3 GPIO0  n/c (used by Flash-Chip)
-D4 GPIO2  TxD1 -> Hardware-UART1, Remko XT
-D5 GPIO14      -> W5500 SCLK
-D6 GPIO12      -> W5500 MISO
-D7 GPIO13      -> W5500 MOSI
-D8 GPIO15      -> W5500 SCS (ChipSelect)
-RxD            <- Hardware-UART0 (free)
-TxD            -> Hardware-UART0 (free)
-GND
-3V3
 
 Additional links:
 =================
@@ -73,7 +98,6 @@ https://github.com/Wiznet/WIZ_Ethernet_Library
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <PubSubClient.h>
-#include "remkocmd.h"
 
 #ifndef UseWiFi
   #define W5500_RESET_Pin 16
@@ -89,8 +113,6 @@ https://github.com/Wiznet/WIZ_Ethernet_Library
   bool WiFiAvailable = false;
 #endif
 
-byte cmd[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-
 WiFiClient mqttnetworkclient; // MQTT-Client
 ESP8266WebServer webserver(80); // HTTP-Server
 ESP8266HTTPUpdateServer httpupdater; // WebUpdater
@@ -100,6 +122,7 @@ PubSubClient mqttclient(mqttnetworkclient);
 
 // define Tickers
 Ticker TimerSeconds;
+uint8_t TimerCounter = 0;
 
 // do a minimal webserver to give a sign of live :-)
 void handleRoot() {
@@ -118,8 +141,14 @@ void handleNotFound() {
 }
 
 void TimerSecondsFcn() {
-  if (mqttclient.connected()){
-    // do something here every second
+  TimerCounter++;
+  if (TimerCounter>=mqtt_publish_interval) {
+    TimerCounter=0;
+
+    // send status via MQTT if connected
+    if (mqttclient.connected()){
+      remko_comm_publishmqtt();
+    }
   }
 }
 
@@ -189,12 +218,7 @@ void TimerSecondsFcn() {
 void setup() {
   delay(1000);
 
-  pinMode(D4, OUTPUT);
-  #ifdef InvertCommunication
-    digitalWrite(D4, LOW);
-  #else
-    digitalWrite(D4, HIGH);
-  #endif
+  remko_comm_init();
 
   #ifndef UseWiFi
     init_eth();
@@ -234,111 +258,14 @@ void setup() {
   #endif
 }
 
-static const unsigned long BIT_TIME = 550; // microseconds
-static unsigned long lastBitRefreshTime = 0;
-uint8_t bitcounter = 0; // bitstream stopped
-uint8_t remko_cmd_pass = 0; // bitstream stopped
-
-void DoBitStreamStep() {
-  if (remko_cmd_pass>0) {
-    if (bitcounter<sizeof(cmd)*8) {
-      #ifdef InvertCommunication
-        digitalWrite(D4, !bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
-      #else
-        digitalWrite(D4, bitRead(cmd[bitcounter/8], bitcounter-(bitcounter/8)*8));
-      #endif
-      bitcounter+=1;
-    }else{
-      // we reached end of transmission
-      #ifdef InvertCommunication
-        digitalWrite(D4, LOW);
-      #else
-        digitalWrite(D4, HIGH);
-      #endif
-      delayMicroseconds(BIT_TIME); // give last bit time
-
-      if (remko_cmd_pass==1) {
-        // send same command second time
-        delayMicroseconds(BIT_TIME); // add additional bit
-        remko_cmd_pass=2;
-        bitcounter=0;
-      }else{
-        // stop transmission
-        remko_cmd_pass=0;
-        bitcounter=0;
-      }
-    }
-  }
-}
-
-void SendRemkoCmd(uint8_t CmdType) {
-  // load command
-  switch (CmdType) {
-    case 0:
-      memcpy(cmd, cmd_turnon, sizeof(cmd));
-      break;
-    case 1:
-      memcpy(cmd, cmd_turnoff, sizeof(cmd));
-      break;
-    case 2:
-      memcpy(cmd, cmd_auto, sizeof(cmd));
-      break;
-    case 3:
-      memcpy(cmd, cmd_cool, sizeof(cmd));
-      break;
-    case 4:
-      memcpy(cmd, cmd_dry, sizeof(cmd));
-      break;
-    case 5:
-      memcpy(cmd, cmd_heat, sizeof(cmd));
-      break;
-    case 6:
-      memcpy(cmd, cmd_17, sizeof(cmd));
-      break;
-    case 7:
-      memcpy(cmd, cmd_18, sizeof(cmd));
-      break;
-    case 8:
-      memcpy(cmd, cmd_19, sizeof(cmd));
-      break;
-    case 9:
-      memcpy(cmd, cmd_20, sizeof(cmd));
-      break;
-    case 10:
-      memcpy(cmd, cmd_21, sizeof(cmd));
-      break;
-    case 11:
-      memcpy(cmd, cmd_22, sizeof(cmd));
-      break;
-    case 12:
-      memcpy(cmd, cmd_23, sizeof(cmd));
-      break;
-    case 13:
-      memcpy(cmd, cmd_24, sizeof(cmd));
-      break;
-    case 14:
-      memcpy(cmd, cmd_followmeon, sizeof(cmd));
-      break;
-    case 15:
-      memcpy(cmd, cmd_followmeoff, sizeof(cmd));
-      break;
-    case 16:
-      memcpy(cmd, cmd_led, sizeof(cmd));
-      break;
-  }
-
-  // start bitstream-transmission
-  bitcounter = 0;
-  remko_cmd_pass = 1;
-}
 
 void loop() {
   // output cmd-bitstream if we have bits to send
-  if (micros() - lastBitRefreshTime >= BIT_TIME) {
-    lastBitRefreshTime+=BIT_TIME;
-    DoBitStreamStep();
-  }
-
+  // remko_comm_step() is a time-critical function. So do not
+  // put any delays within the loop(). Otherwise the individual
+  // bits will have the wrong timing
+  remko_comm_step();
+  
   #ifdef UseWiFi
   if (WiFiAvailable) {
   #else
@@ -367,17 +294,41 @@ void HandleMQTT() {
     mqttclient.connect(mqtt_id);
 
     // subscribe to the desired topics
-    mqttclient.subscribe(mqtt_topic_powerstate);
-    mqttclient.subscribe(mqtt_topic_opmode);
-    mqttclient.subscribe(mqtt_topic_setpoint);
-    mqttclient.subscribe(mqtt_topic_followme);
-    mqttclient.subscribe(mqtt_topic_led);
+    #ifdef RemkoDevice0
+      mqttclient.subscribe(mqtt_topic_dev0_set_powerstate);
+      mqttclient.subscribe(mqtt_topic_dev0_set_opmode);
+      mqttclient.subscribe(mqtt_topic_dev0_set_setpoint);
+      mqttclient.subscribe(mqtt_topic_dev0_set_followme);
+      mqttclient.subscribe(mqtt_topic_dev0_set_led);
+    #endif
+    #ifdef RemkoDevice1
+      mqttclient.subscribe(mqtt_topic_dev1_set_powerstate);
+      mqttclient.subscribe(mqtt_topic_dev1_set_opmode);
+      mqttclient.subscribe(mqtt_topic_dev1_set_setpoint);
+      mqttclient.subscribe(mqtt_topic_dev1_set_followme);
+      mqttclient.subscribe(mqtt_topic_dev1_set_led);
+    #endif
+    #ifdef RemkoDevice2
+      mqttclient.subscribe(mqtt_topic_dev2_set_powerstate);
+      mqttclient.subscribe(mqtt_topic_dev2_set_opmode);
+      mqttclient.subscribe(mqtt_topic_dev2_set_setpoint);
+      mqttclient.subscribe(mqtt_topic_dev2_set_followme);
+      mqttclient.subscribe(mqtt_topic_dev2_set_led);
+    #endif
+    #ifdef RemkoDevice3
+      mqttclient.subscribe(mqtt_topic_dev3_set_powerstate);
+      mqttclient.subscribe(mqtt_topic_dev3_set_opmode);
+      mqttclient.subscribe(mqtt_topic_dev3_set_setpoint);
+      mqttclient.subscribe(mqtt_topic_dev3_set_followme);
+      mqttclient.subscribe(mqtt_topic_dev3_set_led);
+    #endif
   }else{
     // connected to MQTT-server
     mqttclient.loop(); // process incoming messages
   }
 }
 
+/*
 void PublishMQTT(char* pretopic, char* topic, float payload) {
   char mqtt_payload[10];
   dtostrf(payload, 2, 4, mqtt_payload);
@@ -387,86 +338,85 @@ void PublishMQTT(char* pretopic, char* topic, float payload) {
   strcat(mqtt_topic, topic);
   mqttclient.publish(mqtt_topic, mqtt_payload);
 }
+*/
 
 void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
   payload[length] = '\0'; // null-terminate byte-array
 
-  if (strcmp(topic, mqtt_topic_powerstate)==0) {
-    // set powerstate
-    if (strcmp((char*)payload, "0")==0) {
-      // turn off
-      SendRemkoCmd(1);
-    }else if (strcmp((char*)payload, "1")==0) {
-      // turn on
-      SendRemkoCmd(0);
-    }
-  }
-  
-  if (strcmp(topic, mqtt_topic_opmode)==0) {
-    // set operating-mode
-    switch (String((char*)payload).toInt()) {
-      case 0:
-        // AUTO
-        SendRemkoCmd(2);
-        break;
-      case 1:
-        // COOL
-        SendRemkoCmd(3);
-        break;
-      case 2:
-        // DRY
-        SendRemkoCmd(4);
-        break;
-      case 3:
-        // HEAT
-        SendRemkoCmd(5);
-        break;
-    }
-  }
-  
-  if (strcmp(topic, mqtt_topic_setpoint)==0) {
-    // set temperature
-    switch (String((char*)payload).toInt()) {
-      case 17:
-        SendRemkoCmd(6);
-        break;
-      case 18:
-        SendRemkoCmd(7);
-        break;
-      case 19:
-        SendRemkoCmd(8);
-        break;
-      case 20:
-        SendRemkoCmd(9);
-        break;
-      case 21:
-        SendRemkoCmd(10);
-        break;
-      case 22:
-        SendRemkoCmd(11);
-        break;
-      case 23:
-        SendRemkoCmd(12);
-        break;
-      case 24:
-        SendRemkoCmd(13);
-        break;
-    }
-  }
+  // preload TimerCounter to 2s before interval so that new values are send right after the bitstream has finished
+  TimerCounter=mqtt_publish_interval-2;
 
-  if (strcmp(topic, mqtt_topic_followme)==0) {
-    // enable/disable follow-me
-    if (strcmp((char*)payload, "0")==0) {
-      // turn off
-        SendRemkoCmd(14);
-    }else if (strcmp((char*)payload, "1")==0) {
-      // turn on
-        SendRemkoCmd(15);
-    }
-  }
+  // the following code is not nice but it is working. Feel free to write better code :)
 
-  if (strcmp(topic, mqtt_topic_led)==0) {
-    // toggle led
-    SendRemkoCmd(16);
-  }
+  #ifdef RemkoDevice0
+    if (strcmp(topic, mqtt_topic_dev0_set_powerstate)==0) {
+      remko_comm_sendcmd(0, 0, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev0_set_opmode)==0) {
+      remko_comm_sendcmd(0, 1, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev0_set_setpoint)==0) {
+      remko_comm_sendcmd(0, 2, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev0_set_followme)==0) {
+      remko_comm_sendcmd(0, 3, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev0_set_led)==0) {
+      remko_comm_sendcmd(0, 4, 0);
+    }
+  #endif
+  
+  #ifdef RemkoDevice1
+    if (strcmp(topic, mqtt_topic_dev1_set_powerstate)==0) {
+      remko_comm_sendcmd(1, 0, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev1_set_opmode)==0) {
+      remko_comm_sendcmd(1, 1, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev1_set_setpoint)==0) {
+      remko_comm_sendcmd(1, 2, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev1_set_followme)==0) {
+      remko_comm_sendcmd(1, 3, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev1_set_led)==0) {
+      remko_comm_sendcmd(1, 4, 0);
+    }
+  #endif
+  
+  #ifdef RemkoDevice2
+    if (strcmp(topic, mqtt_topic_dev2_set_powerstate)==0) {
+      remko_comm_sendcmd(2, 0, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev2_set_opmode)==0) {
+      remko_comm_sendcmd(2, 1, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev2_set_setpoint)==0) {
+      remko_comm_sendcmd(2, 2, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev2_set_followme)==0) {
+      remko_comm_sendcmd(2, 3, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev2_set_led)==0) {
+      remko_comm_sendcmd(2, 4, 0);
+    }
+  #endif
+  
+  #ifdef RemkoDevice3
+    if (strcmp(topic, mqtt_topic_dev3_set_powerstate)==0) {
+      remko_comm_sendcmd(3, 0, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev3_set_opmode)==0) {
+      remko_comm_sendcmd(3, 1, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev3_set_setpoint)==0) {
+      remko_comm_sendcmd(3, 2, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev3_set_followme)==0) {
+      remko_comm_sendcmd(3, 3, (uint8_t)String((char*)payload).toInt());
+    }
+    if (strcmp(topic, mqtt_topic_dev3_set_led)==0) {
+      remko_comm_sendcmd(3, 4, 0);
+    }
+  #endif
 }

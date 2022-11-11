@@ -1,11 +1,16 @@
-
 // general software config
-const char* versionstring = "v0.1.0 built on ";
+const char* versionstring = "v1.0.0 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
-
-#define InvertCommunication 1
+const char* host = "remko2mqtt";
 
 #define UseWiFi 1
+#define UseStaticIP 1
+
+// select how many Remko-devices you want to control and on which GPIO
+#define RemkoDevice0 5
+#define RemkoDevice1 4
+//#define RemkoDevice2 3
+//#define RemkoDevice3 1
 
 #ifdef UseWiFi
   // we are using WiFi connection
@@ -19,14 +24,11 @@ const char compile_date[] = __DATE__ " " __TIME__;
   byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED}; //MAC
 #endif
 
-const char* host = "remko2mqtt";
-
-#define UseStaticIP 1
 #ifdef UseStaticIP
   IPAddress local_IP(192, 168, 0, 42);
   IPAddress gateway(192, 168, 0, 1);
   IPAddress subnet(255, 255, 255, 0);
-  IPAddress primaryDNS(192, 168, 0, 1);   //optional
+  IPAddress primaryDNS(192, 168, 0, 1); //optional
   IPAddress secondaryDNS(1, 1, 1, 1); //optional
 #endif
 
@@ -34,8 +36,41 @@ const char* host = "remko2mqtt";
 #define mqtt_id "remko2mqtt"
 #define mqtt_server "192.168.0.41"
 #define mqtt_serverport 1883
-#define mqtt_topic_powerstate "remko/powerstate"
-#define mqtt_topic_opmode     "remko/opmode"
-#define mqtt_topic_setpoint   "remko/setpoint"
-#define mqtt_topic_followme   "remko/followme"
-#define mqtt_topic_led        "remko/led"
+#define mqtt_publish_interval 60
+#define mqtt_topic_dev0_set_powerstate "remko/0/set/powerstate"
+#define mqtt_topic_dev0_set_opmode     "remko/0/set/opmode"
+#define mqtt_topic_dev0_set_setpoint   "remko/0/set/setpoint"
+#define mqtt_topic_dev0_set_followme   "remko/0/set/followme"
+#define mqtt_topic_dev0_set_led        "remko/0/set/led"
+#define mqtt_topic_dev1_set_powerstate "remko/1/set/powerstate"
+#define mqtt_topic_dev1_set_opmode     "remko/1/set/opmode"
+#define mqtt_topic_dev1_set_setpoint   "remko/1/set/setpoint"
+#define mqtt_topic_dev1_set_followme   "remko/1/set/followme"
+#define mqtt_topic_dev1_set_led        "remko/1/set/led"
+#define mqtt_topic_dev2_set_powerstate "remko/2/set/powerstate"
+#define mqtt_topic_dev2_set_opmode     "remko/2/set/opmode"
+#define mqtt_topic_dev2_set_setpoint   "remko/2/set/setpoint"
+#define mqtt_topic_dev2_set_followme   "remko/2/set/followme"
+#define mqtt_topic_dev2_set_led        "remko/2/set/led"
+#define mqtt_topic_dev3_set_powerstate "remko/3/set/powerstate"
+#define mqtt_topic_dev3_set_opmode     "remko/3/set/opmode"
+#define mqtt_topic_dev3_set_setpoint   "remko/3/set/setpoint"
+#define mqtt_topic_dev3_set_followme   "remko/3/set/followme"
+#define mqtt_topic_dev3_set_led        "remko/3/set/led"
+
+#define mqtt_topic_dev0_powerstate      "remko/0/powerstate"
+#define mqtt_topic_dev0_opmode          "remko/0/opmode"
+#define mqtt_topic_dev0_setpoint        "remko/0/setpoint"
+#define mqtt_topic_dev0_followme        "remko/0/followme"
+#define mqtt_topic_dev1_powerstate      "remko/1/powerstate"
+#define mqtt_topic_dev1_opmode          "remko/1/opmode"
+#define mqtt_topic_dev1_setpoint        "remko/1/setpoint"
+#define mqtt_topic_dev1_followme        "remko/1/followme"
+#define mqtt_topic_dev2_powerstate      "remko/2/powerstate"
+#define mqtt_topic_dev2_opmode          "remko/2/opmode"
+#define mqtt_topic_dev2_setpoint        "remko/2/setpoint"
+#define mqtt_topic_dev2_followme        "remko/2/followme"
+#define mqtt_topic_dev3_powerstate      "remko/3/powerstate"
+#define mqtt_topic_dev3_opmode          "remko/3/opmode"
+#define mqtt_topic_dev3_setpoint        "remko/3/setpoint"
+#define mqtt_topic_dev3_followme        "remko/3/followme"
