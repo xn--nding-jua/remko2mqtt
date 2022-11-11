@@ -34,7 +34,10 @@ Future "nice-to-have" feature will be:
 
 <a name="software"></a>
 # Using the software
-To use this software with your own devices you have to compile the software using Arduino with installed ESP8266-support and PubSubClient-library. In the config.h you have to configure the software. You can choose between using WiFi or an ethernet-connection using the W5500-ethernet-shield. Furthermore you can select how many Remko-devices you'd like to use (up to four) and on which GPIO you want to output the commands. The IP-addresses and MQTT-topics can be set within the config.h, too.
+To use this software with your own Remko-devices you have to compile the software using Arduino with installed ESP8266-support and PubSubClient-library. In the config.h you have to configure the software (IP-Addresses, MQTT-Server, and so on). You can choose between using WiFi or an ethernet-connection using the W5500-ethernet-shield. Furthermore you can select how many Remko-devices you'd like to use (at the moment up to four) and on which GPIO you want to output the commands. The IP-addresses and MQTT-topics can be set within the config.h, too. Finally, I've implemented an OTA-firmware-update-feature that allows you to update the firmware via the webpage. Just open the IP-address of the device with a browser, click on the button "Firmwareupgrade" and follow the instructions. A new firmware-binary can be created using Arduino using "Ctrl+Alt+S".
+
+The ESP8266 can be connected via a simple level-shifter-circuit using a BC337 transistor (or similar):
+![image](https://user-images.githubusercontent.com/9845353/201294124-841eece7-cbb7-40e3-a969-25299c0f4f51.png)
 
 <a name="information"></a>
 # Information about the used communication-protocol
