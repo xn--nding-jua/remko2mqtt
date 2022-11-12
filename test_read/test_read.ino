@@ -1,4 +1,4 @@
-#define InvertCommunication 1
+#define InvertRxD 1
 #define BIT_TIME 550 // microseconds
 #define cmdlength 21 // bytes
 
@@ -115,7 +115,7 @@ void remko_rxd_readbit(uint8_t device) {
 
   if (bitcounter_rxd[device]<cmdlength*8) {
     // read current bit and write it to cmd
-    #ifdef InvertCommunication
+    #ifdef InvertRxD
       bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), !digitalRead(RemkoRxPin[device]));
     #else
       bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), digitalRead(RemkoRxPin[device]));
@@ -136,7 +136,7 @@ void remko_rxd_readbit(uint8_t device) {
   }
 }
 
-void remko_txd_init() {
+void remko_rxd_init() {
   for (int device=0;device<RemkoRxDevices;device++){
     remko_rxd_reset(device);
   }
@@ -146,14 +146,14 @@ void remko_rxd_reset(uint8_t device) {
   // reattach interrupt for next command
   bitcounter_rxd[device]=0;
   remko_readcmd_state[device]=0; // reset statemachine for next command
-  #ifdef InvertCommunication
+  #ifdef InvertRxD
     attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), RISING);
   #else
     attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), FALLING);
   #endif
 }
 
-void remko_txd_step() {
+void remko_rxd_step() {
   for (int device=0; device<RemkoRxDevices; device++) {  
     if (micros() - lastBitReadTime[device] >= BIT_TIME) {
       if (remko_readcmd_state[device] == 1) {
@@ -238,9 +238,9 @@ void remko_txd_step() {
 
 void setup() {
   Serial.begin(115200);
-  remko_txd_init();
+  remko_rxd_init();
 }
 
 void loop() {
-  remko_txd_step();
+  remko_rxd_step();
 }

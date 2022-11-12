@@ -1,7 +1,7 @@
 /*************************************************************************************
 remko2mqtt Interface for ESP8266
 Destination-Hardware: NodeMCU ESP8266 with optional W5500 Ethernet-Shield
-v1.0.0 (c) 2022 Dr.-Ing. Christian Nöding
+v1.2.0 (c) 2022 Dr.-Ing. Christian Nöding
 
 I'm not related to Remko and this software is not an official part of Remko.
 It is an attempt to improve the controllability of Remko devices for private use. Don't
@@ -45,21 +45,31 @@ To connect to Remko, please add a level-shifter for each XT-output:
                      GND
 
 At the moment a maximum of 4 devices can be controlled by this software, but could be
-increased to more. The GPIO-pins can be changed using the config.h
+increased to more. The used GPIO-pins can be changed using the config.h
 
 D0 GPIO16  -> W5500 RST (Reset)
-D1 GPIO5   -> Remko XT0 (Device 0)
-D2 GPIO4   -> Remko XT1 (Device 1)
-D3 GPIO0   -> (used by Flash-Chip)
-D4 GPIO2   -> free (this pin toggles when uploading new software to flash)
-D5 GPIO14  -> W5500 SCLK
-D6 GPIO12  -> W5500 MISO
+D1 GPIO5   -> Remko XT0 (Device 0 TxD)
+D2 GPIO4   -> Remko RCV0 (Device 0 RxD)
+D3 GPIO0   -> Remko XT1 (Device 1 TxD)
+D4 GPIO2   -> Remko RCV1 (Device 1 RxD)
+D5 GPIO14  -> W5500 SCLK or Remko XT3 (Device 3 TxD)
+D6 GPIO12  -> W5500 MISO or Remko RCV3 (Device 3 RxD)
 D7 GPIO13  -> W5500 MOSI
 D8 GPIO15  -> W5500 SCS (ChipSelect)
-RxD GPIO3  -> Remko XT2 (Device 2)
-TxD GPIO1  -> Remko XT3 (Device 3)
+RxD GPIO3  -> Remko XT2 (Device 2 TxD)
+TxD GPIO1  -> Remko RCV2 (Device 2 TxD)
 GND
 3V3
+
+GPIOs 0, 2 and 15 control the boot of ESP8266:
+0 2 15 Mode   Description
+==================================================
+L H H  Flash  Boot from SPI Flash (Normal running) 
+L L H  UART   Program via UART (Tx/Rx)
+H x x  SDIO   Boot from SD-Card
+
+GPIO9 and GPIO10 are reserved for flash-chip but could be used as
+GPIOs by reconfiguring the flash-communication
 
 As the GPIO15 (SPI CS) is wired to ESP8266 Flash to boot you have to put a
 4k7 resistor between GPIO15 and GND to let the ESP8266 boot correctly!
@@ -218,7 +228,12 @@ void TimerSecondsFcn() {
 void setup() {
   delay(1000);
 
+  // initialize sending of Remko-commands
   remko_txd_init();
+  #if RemkoRxDevices >= 1
+    // initialize reading of Remko-commands
+    remko_rxd_init();
+  #endif
 
   #ifndef UseWiFi
     init_eth();
@@ -265,6 +280,10 @@ void loop() {
   // put any delays within the loop(). Otherwise the individual
   // bits will have the wrong timing
   remko_txd_step();
+
+  #if RemkoRxDevices >= 1
+    remko_rxd_step();
+  #endif
   
   #ifdef UseWiFi
   if (WiFiAvailable) {

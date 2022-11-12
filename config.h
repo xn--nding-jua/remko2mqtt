@@ -1,14 +1,17 @@
 // general software config
-const char* versionstring = "v1.0.0 built on ";
+const char* versionstring = "v1.2.0 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
 const char* host = "remko2mqtt";
 
 #define UseWiFi 1
 #define UseStaticIP 1
+#define MirrorRxD2TxD 1 // mirrors the received commands to the defined output-pin
 
 // select how many Remko-devices you want to control and on which GPIO
-#define RemkoTxDevices 2 // define the numbers of devices you want to control (1...4)
-uint8_t RemkoTxPin[] = {5, 4, 3, 1}; // Enter the desired GPIO pins in this array
+#define RemkoTxDevices 2 // define the numbers of devices you want to control (1...4) - only 3 Devices possible if using W5500 ethernet
+uint8_t RemkoTxPin[] = {5, 0, 3, 14}; // Enter the desired GPIO pins in this array
+#define RemkoRxDevices 2 // define the numbers of devices you want to read (0...4) - only 3 Devices possible if using W5500 ethernet
+uint8_t RemkoRxPin[] = {4, 2, 1, 12}; // Enter the desired GPIO pins in this array
 
 #ifdef UseWiFi
   // we are using WiFi connection
