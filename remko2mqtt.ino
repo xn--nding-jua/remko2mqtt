@@ -147,7 +147,7 @@ void TimerSecondsFcn() {
 
     // send status via MQTT if connected
     if (mqttclient.connected()){
-      remko_comm_publishmqtt();
+      remko_publishmqtt();
     }
   }
 }
@@ -218,7 +218,7 @@ void TimerSecondsFcn() {
 void setup() {
   delay(1000);
 
-  remko_comm_init();
+  remko_txd_init();
 
   #ifndef UseWiFi
     init_eth();
@@ -261,10 +261,10 @@ void setup() {
 
 void loop() {
   // output cmd-bitstream if we have bits to send
-  // remko_comm_step() is a time-critical function. So do not
+  // remko_txd_step() is a time-critical function. So do not
   // put any delays within the loop(). Otherwise the individual
   // bits will have the wrong timing
-  remko_comm_step();
+  remko_txd_step();
   
   #ifdef UseWiFi
   if (WiFiAvailable) {
@@ -294,28 +294,28 @@ void HandleMQTT() {
     mqttclient.connect(mqtt_id);
 
     // subscribe to the desired topics
-    #ifdef RemkoDevice0
+    #if RemkoTxDevices >= 1
       mqttclient.subscribe(mqtt_topic_dev0_set_powerstate);
       mqttclient.subscribe(mqtt_topic_dev0_set_opmode);
       mqttclient.subscribe(mqtt_topic_dev0_set_setpoint);
       mqttclient.subscribe(mqtt_topic_dev0_set_followme);
       mqttclient.subscribe(mqtt_topic_dev0_set_led);
     #endif
-    #ifdef RemkoDevice1
+	#if RemkoTxDevices >= 2
       mqttclient.subscribe(mqtt_topic_dev1_set_powerstate);
       mqttclient.subscribe(mqtt_topic_dev1_set_opmode);
       mqttclient.subscribe(mqtt_topic_dev1_set_setpoint);
       mqttclient.subscribe(mqtt_topic_dev1_set_followme);
       mqttclient.subscribe(mqtt_topic_dev1_set_led);
     #endif
-    #ifdef RemkoDevice2
+    #if RemkoTxDevices >= 3
       mqttclient.subscribe(mqtt_topic_dev2_set_powerstate);
       mqttclient.subscribe(mqtt_topic_dev2_set_opmode);
       mqttclient.subscribe(mqtt_topic_dev2_set_setpoint);
       mqttclient.subscribe(mqtt_topic_dev2_set_followme);
       mqttclient.subscribe(mqtt_topic_dev2_set_led);
     #endif
-    #ifdef RemkoDevice3
+    #if RemkoTxDevices >= 4
       mqttclient.subscribe(mqtt_topic_dev3_set_powerstate);
       mqttclient.subscribe(mqtt_topic_dev3_set_opmode);
       mqttclient.subscribe(mqtt_topic_dev3_set_setpoint);
@@ -348,75 +348,75 @@ void MQTT_Callback(char* topic, byte* payload, unsigned int length) {
 
   // the following code is not nice but it is working. Feel free to write better code :)
 
-  #ifdef RemkoDevice0
+  #if RemkoTxDevices >= 1
     if (strcmp(topic, mqtt_topic_dev0_set_powerstate)==0) {
-      remko_comm_sendcmd(0, 0, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(0, 0, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev0_set_opmode)==0) {
-      remko_comm_sendcmd(0, 1, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(0, 1, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev0_set_setpoint)==0) {
-      remko_comm_sendcmd(0, 2, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(0, 2, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev0_set_followme)==0) {
-      remko_comm_sendcmd(0, 3, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(0, 3, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev0_set_led)==0) {
-      remko_comm_sendcmd(0, 4, 0);
+      remko_txd_sendcmd(0, 4, 0);
     }
   #endif
   
-  #ifdef RemkoDevice1
+  #if RemkoTxDevices >= 2
     if (strcmp(topic, mqtt_topic_dev1_set_powerstate)==0) {
-      remko_comm_sendcmd(1, 0, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(1, 0, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev1_set_opmode)==0) {
-      remko_comm_sendcmd(1, 1, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(1, 1, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev1_set_setpoint)==0) {
-      remko_comm_sendcmd(1, 2, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(1, 2, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev1_set_followme)==0) {
-      remko_comm_sendcmd(1, 3, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(1, 3, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev1_set_led)==0) {
-      remko_comm_sendcmd(1, 4, 0);
+      remko_txd_sendcmd(1, 4, 0);
     }
   #endif
   
-  #ifdef RemkoDevice2
+  #if RemkoTxDevices >= 3
     if (strcmp(topic, mqtt_topic_dev2_set_powerstate)==0) {
-      remko_comm_sendcmd(2, 0, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(2, 0, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev2_set_opmode)==0) {
-      remko_comm_sendcmd(2, 1, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(2, 1, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev2_set_setpoint)==0) {
-      remko_comm_sendcmd(2, 2, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(2, 2, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev2_set_followme)==0) {
-      remko_comm_sendcmd(2, 3, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(2, 3, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev2_set_led)==0) {
-      remko_comm_sendcmd(2, 4, 0);
+      remko_txd_sendcmd(2, 4, 0);
     }
   #endif
   
-  #ifdef RemkoDevice3
+  #if RemkoTxDevices >= 4
     if (strcmp(topic, mqtt_topic_dev3_set_powerstate)==0) {
-      remko_comm_sendcmd(3, 0, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(3, 0, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev3_set_opmode)==0) {
-      remko_comm_sendcmd(3, 1, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(3, 1, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev3_set_setpoint)==0) {
-      remko_comm_sendcmd(3, 2, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(3, 2, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev3_set_followme)==0) {
-      remko_comm_sendcmd(3, 3, (uint8_t)String((char*)payload).toInt());
+      remko_txd_sendcmd(3, 3, (uint8_t)String((char*)payload).toInt());
     }
     if (strcmp(topic, mqtt_topic_dev3_set_led)==0) {
-      remko_comm_sendcmd(3, 4, 0);
+      remko_txd_sendcmd(3, 4, 0);
     }
   #endif
 }

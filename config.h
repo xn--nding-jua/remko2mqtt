@@ -7,10 +7,8 @@ const char* host = "remko2mqtt";
 #define UseStaticIP 1
 
 // select how many Remko-devices you want to control and on which GPIO
-#define RemkoDevice0 5
-#define RemkoDevice1 4
-//#define RemkoDevice2 3
-//#define RemkoDevice3 1
+#define RemkoTxDevices 2 // define the numbers of devices you want to control (1...4)
+uint8_t RemkoTxPin[] = {5, 4, 3, 1}; // Enter the desired GPIO pins in this array
 
 #ifdef UseWiFi
   // we are using WiFi connection
