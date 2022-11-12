@@ -17,6 +17,7 @@ With this Arduino-project you can control your Remko air conditioner (mainly the
 - [x] Write code to emulate the necessary commands with 1800 Baud
 - [x] Create an adapter-board using ESP8266 to emulate original interface-PCB (mainly a simple level-shift from 3V3 to 5V)
 - [x] Enhance code to support more than one device addressed via MQTT-topic using multiple GPIOs
+- [x] Read-function to receive and evaluate commands of IR-remote-control
 - [ ] Discover the used protocol for XYE-connection to use RS485 with address-setting for supporting multiple devices
 - [ ] Reverse engineering of the communication-protocol of an original Remko Smart-Control WiFi-Stick to find more commands
 - [ ] Enhance the written ESP8266-program with discovered commands of original WiFi-Stick
