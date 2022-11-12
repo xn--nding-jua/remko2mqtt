@@ -1,5 +1,3 @@
-#define InvertTxD 1
-#define InvertRxD 1
 #define BitTime 550 // microseconds
 #define cmdlength 21  // bytes
 
@@ -78,7 +76,7 @@ void remko_publishmqtt() {
 void remko_txd_init() {
   for (int device=0;device<RemkoTxDevices;device++){
     pinMode(RemkoTxPin[device], OUTPUT);
-    #ifdef InvertTxD
+    #ifdef RemkoInvertTxD
       digitalWrite(RemkoTxPin[device], LOW);
     #else
       digitalWrite(RemkoTxPin[device], HIGH);
@@ -100,7 +98,7 @@ void remko_txd_sendbit(uint8_t device) {
   // this state-machine has five states: 0=standby, 1=send command, 2&3=waitstates, 4=send command
   if ((remko_sendcmd_state[device]==1) || (remko_sendcmd_state[device]==4)) {
     if (bitcounter_txd[device]<cmdlength*8) {
-      #ifdef InvertTxD
+      #ifdef RemkoInvertTxD
         digitalWrite(RemkoTxPin[device], !bitRead(cmd_txd[device][bitcounter_txd[device]/8], bitcounter_txd[device]-(bitcounter_txd[device]/8)*8));
       #else
         digitalWrite(RemkoTxPin[device], bitRead(cmd_txd[device][bitcounter_txd[device]/8], bitcounter_txd[device]-(bitcounter_txd[device]/8)*8));
@@ -108,7 +106,7 @@ void remko_txd_sendbit(uint8_t device) {
       bitcounter_txd[device]+=1;
     }else{
       // we reached end of transmission
-      #ifdef InvertTxD
+      #ifdef RemkoInvertTxD
         digitalWrite(RemkoTxPin[device], LOW);
       #else
         digitalWrite(RemkoTxPin[device], HIGH);
@@ -301,7 +299,7 @@ void remko_rxd_reset(uint8_t device) {
   // reattach interrupt for next command
   bitcounter_rxd[device]=0;
   remko_readcmd_state[device]=0; // reset statemachine for next command
-  #ifdef InvertRxD
+  #ifdef RemkoInvertRxD
     attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), RISING);
   #else
     attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), FALLING);
@@ -414,7 +412,7 @@ void remko_rxd_readbit(uint8_t device) {
 
   if (bitcounter_rxd[device]<cmdlength*8) {
     // read current bit and write it to cmd
-    #ifdef InvertRxD
+    #ifdef RemkoInvertRxD
       bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), !digitalRead(RemkoRxPin[device]));
     #else
       bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), digitalRead(RemkoRxPin[device]));

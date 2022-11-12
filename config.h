@@ -9,9 +9,11 @@ const char* host = "remko2mqtt";
 
 // select how many Remko-devices you want to control and on which GPIO
 #define RemkoTxDevices 2 // define the numbers of devices you want to control (1...4) - only 3 Devices possible if using W5500 ethernet
-uint8_t RemkoTxPin[] = {5, 0, 3, 14}; // Enter the desired GPIO pins in this array
 #define RemkoRxDevices 2 // define the numbers of devices you want to read (0...4) - only 3 Devices possible if using W5500 ethernet
+uint8_t RemkoTxPin[] = {5, 0, 3, 14}; // Enter the desired GPIO pins in this array
 uint8_t RemkoRxPin[] = {4, 2, 1, 12}; // Enter the desired GPIO pins in this array
+#define RemkoInvertTxD 1 // invert Tx-bits (e.g. when using a transistor with pullup-resistor)
+#define RemkoInvertRxD 0 // invert Rx-bits
 
 #ifdef UseWiFi
   // we are using WiFi connection
