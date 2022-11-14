@@ -44,6 +44,29 @@ To connect to Remko, please add a level-shifter for each XT-output:
                       |
                      GND
 
+To receive data from Remko connect the RCV-pin via a levelshifter to the ESP8266
+
+                  from Remko
+               display-PCB, "RCV"
+                       |
+                      _|_
+                     |   |
+                     | 2 |
+                     | k |
+                     | 2 |
+                     |___|
+                       |
+                       |-------- to ESP8266
+                      _|_
+                     | 6 |
+                     | k |
+                     |...|
+                     | 8 |
+                     |_k_|
+                       |
+                       |
+
+
 At the moment a maximum of 4 devices can be controlled by this software, but could be
 increased to more. The used GPIO-pins can be changed using the config.h
 
