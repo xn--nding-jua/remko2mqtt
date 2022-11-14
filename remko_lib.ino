@@ -323,7 +323,7 @@ void remko_rxd_reset(uint8_t device) {
   #endif
 }
 
-boolean remko_processcmd(uint8_t device) {
+boolean remko_rxd_processcmd(uint8_t device) {
   // check header to be 0x0 0xFF 0xAE 0xBB
   if ((cmd_rxd[device][0] != 0x00) || (cmd_rxd[device][1] != 0xFF) || (cmd_rxd[device][2] != 0xAE) || (cmd_rxd[device][3] != 0xBB)) {
     // at least one byte of the header has unexpected content -> abort processing the command
@@ -520,7 +520,7 @@ void remko_rxd_step() {
     // check if all expected bits have been received
     if (bitcounter_rxd[device] >= cmdlength*8) {
       // we received a new command
-      remko_processcmd(device);
+      remko_rxd_processcmd(device);
 
       // reset to receive new commands
       remko_rxd_reset(device);
