@@ -1,32 +1,52 @@
-#define BitTime 550 // microseconds
+#define TxBitTime 550 // microseconds
+#define RxBitTime 550 // microseconds
 #define cmdlength 21  // bytes
+//#define UseInterrupts // use interrupts for detecting the edges of the signal (Caution: not working well with WiFi-module)
 
-uint8_t remko_powerstate[]={0,0,0,0};
-uint8_t remko_opmode[]={0,0,0,0};
-uint8_t remko_setpoint[]={0,0,0,0};
-uint8_t remko_followme[]={0,0,0,0};
-
+struct remko_state {
+  uint8_t powerState;
+  uint8_t opMode;
+  uint8_t setPoint;
+  uint8_t followMe;
+};
+struct remko_state remko_states[4] = {{.powerState=0, .opMode=0, .setPoint=0, .followMe=0},
+                               {.powerState=0, .opMode=0, .setPoint=0, .followMe=0}, 
+                               {.powerState=0, .opMode=0, .setPoint=0, .followMe=0},
+                               {.powerState=0, .opMode=0, .setPoint=0, .followMe=0}};
 // Setup Remko-communication
 static unsigned long lastBitSentTime = 0;
-static unsigned long lastBitReadTime[] = {0,0,0,0};
 uint8_t bitcounter_txd[] = {0,0,0,0}; // bitstream stopped
-uint8_t bitcounter_rxd[] = {0,0,0,0}; // bitstream stopped
 uint8_t remko_sendcmd_state[] = {0,0,0,0}; // current state of the statemachine
-uint8_t remko_readcmd_state[] = {0,0,0,0}; // current state of the statemachine
+
+uint8_t bitcounter_rxd[] = {0,0,0,0}; // search for beginning
+unsigned long lastBitReadTime[] = {0,0,0,0};
+#ifdef UseInterrupts
+  volatile unsigned long HighBitTime[] = {0,0,0,0};
+  volatile unsigned long LowBitTime[] = {0,0,0,0};
+#else
+  unsigned long HighBitTime[] = {0,0,0,0};
+  unsigned long LowBitTime[] = {0,0,0,0};
+  #ifdef RemkoInvertRxD
+    uint8_t lastPinState[] = {0,0,0,0};
+  #else
+    uint8_t lastPinState[] = {1,1,1,1};
+  #endif
+#endif
 
 // storage for the current command for each device as we support sending data in parallel
-byte cmd_txd[4][21] = {{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+byte cmd_txd[4][cmdlength] = {{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 
-byte cmd_rxd[4][21] = {{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+static byte cmd_rxd[4][cmdlength] = {{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
                       {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 
 // definition of the supported commands
-const byte remko_cmd[17][21] = {{0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xAE, 0xBB, 0xBB, 0xBB, 0xAE, 0xAA, 0xEE, 0xAE, 0xAE, 0xAA, 0xBB, 0xEE, 0xFE}, //turn on
+#define NumberOfSupportedCmds 17
+const byte remko_cmd[NumberOfSupportedCmds][cmdlength] = {{0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xAE, 0xBB, 0xBB, 0xBB, 0xAE, 0xAA, 0xEE, 0xAE, 0xAE, 0xAA, 0xBB, 0xEE, 0xFE}, //turn on
                                {0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xBA, 0xBB, 0xEB, 0xEE, 0xAA, 0xAE, 0xEE, 0xAE, 0xAA, 0xEA, 0xEE, 0xEE, 0xFE}, // turn off
                                {0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xAA, 0xBB, 0xBB, 0xBB, 0xBB, 0xAA, 0xEA, 0xBA, 0xEA, 0xAE, 0xEB, 0xEE, 0xFE}, // auto
                                {0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 0xAE, 0xBB, 0xBB, 0xBB, 0xAE, 0xAA, 0xEA, 0xAA, 0xBA, 0xEB, 0xEE, 0xEE, 0xFE}, // cool
@@ -46,28 +66,28 @@ const byte remko_cmd[17][21] = {{0x0, 0xFF, 0xAE, 0xBB, 0xBA, 0xBA, 0xBA, 0xEB, 
 
 void remko_publishmqtt() {
   #if RemkoTxDevices >= 1
-    mqttclient.publish(mqtt_topic_dev0_powerstate, String(remko_powerstate[0]).c_str());  
-    mqttclient.publish(mqtt_topic_dev0_opmode, String(remko_opmode[0]).c_str());  
-    mqttclient.publish(mqtt_topic_dev0_setpoint, String(remko_setpoint[0]).c_str());  
-    mqttclient.publish(mqtt_topic_dev0_followme, String(remko_followme[0]).c_str());  
+    mqttclient.publish(mqtt_topic_dev0_powerstate, String(remko_states[0].powerState).c_str());  
+    mqttclient.publish(mqtt_topic_dev0_opmode, String(remko_states[0].opMode).c_str());  
+    mqttclient.publish(mqtt_topic_dev0_setpoint, String(remko_states[0].setPoint).c_str());  
+    mqttclient.publish(mqtt_topic_dev0_followme, String(remko_states[0].followMe).c_str());  
   #endif
   #if RemkoTxDevices >= 2
-    mqttclient.publish(mqtt_topic_dev1_powerstate, String(remko_powerstate[1]).c_str());  
-    mqttclient.publish(mqtt_topic_dev1_opmode, String(remko_opmode[1]).c_str());  
-    mqttclient.publish(mqtt_topic_dev1_setpoint, String(remko_setpoint[1]).c_str());  
-    mqttclient.publish(mqtt_topic_dev1_followme, String(remko_followme[1]).c_str());  
+    mqttclient.publish(mqtt_topic_dev1_powerstate, String(remko_states[1].powerState).c_str());  
+    mqttclient.publish(mqtt_topic_dev1_opmode, String(remko_states[1].opMode).c_str());  
+    mqttclient.publish(mqtt_topic_dev1_setpoint, String(remko_states[1].setPoint).c_str());  
+    mqttclient.publish(mqtt_topic_dev1_followme, String(remko_states[1].followMe).c_str());  
   #endif
   #if RemkoTxDevices >= 3
-    mqttclient.publish(mqtt_topic_dev2_powerstate, String(remko_powerstate[2]).c_str());  
-    mqttclient.publish(mqtt_topic_dev2_opmode, String(remko_opmode[2]).c_str());  
-    mqttclient.publish(mqtt_topic_dev2_setpoint, String(remko_setpoint[2]).c_str());  
-    mqttclient.publish(mqtt_topic_dev2_followme, String(remko_followme[2]).c_str());  
+    mqttclient.publish(mqtt_topic_dev2_powerstate, String(remko_states[2].powerState).c_str());  
+    mqttclient.publish(mqtt_topic_dev2_opmode, String(remko_states[2].opMode).c_str());  
+    mqttclient.publish(mqtt_topic_dev2_setpoint, String(remko_states[2].setPoint).c_str());  
+    mqttclient.publish(mqtt_topic_dev2_followme, String(remko_states[2].followMe).c_str());  
   #endif
   #if RemkoTxDevices >= 4
-    mqttclient.publish(mqtt_topic_dev3_powerstate, String(remko_powerstate[3]).c_str());  
-    mqttclient.publish(mqtt_topic_dev3_opmode, String(remko_opmode[3]).c_str());  
-    mqttclient.publish(mqtt_topic_dev3_setpoint, String(remko_setpoint[3]).c_str());  
-    mqttclient.publish(mqtt_topic_dev3_followme, String(remko_followme[3]).c_str());  
+    mqttclient.publish(mqtt_topic_dev3_powerstate, String(remko_states[3].powerState).c_str());  
+    mqttclient.publish(mqtt_topic_dev3_opmode, String(remko_states[3].opMode).c_str());  
+    mqttclient.publish(mqtt_topic_dev3_setpoint, String(remko_states[3].setPoint).c_str());  
+    mqttclient.publish(mqtt_topic_dev3_followme, String(remko_states[3].followMe).c_str());  
   #endif
 }
 
@@ -85,8 +105,8 @@ void remko_txd_init() {
 }
 
 void remko_txd_step() {
-  if (micros() - lastBitSentTime >= BitTime) {
-    lastBitSentTime+=BitTime;
+  if (micros() - lastBitSentTime >= TxBitTime) {
+    lastBitSentTime+=TxBitTime;
 	
   	for (int device=0; device<RemkoTxDevices; device++) {
         remko_txd_sendbit(device);
@@ -139,10 +159,10 @@ void remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
     case 0: // powerstate
       if (value==1) {
         memcpy(cmd_txd[device], remko_cmd[0], cmdlength);
-        remko_powerstate[device]=1;
+        remko_states[device].powerState=1;
       }else{
         memcpy(cmd_txd[device], remko_cmd[1], cmdlength);
-        remko_powerstate[device]=0;
+        remko_states[device].powerState=0;
       }
       break;
     case 1: // opmode
@@ -160,7 +180,7 @@ void remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
           memcpy(cmd_txd[device], remko_cmd[5], cmdlength);
           break;
       }
-      remko_opmode[device]=value;
+      remko_states[device].opMode=value;
       break;
     case 2: // setpoint
       switch(value) {
@@ -189,15 +209,15 @@ void remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
           memcpy(cmd_txd[device], remko_cmd[13], cmdlength);
           break;
       }
-      remko_setpoint[device]=value;
+      remko_states[device].setPoint=value;
       break;
     case 3: // followme
       if (value==1) {
         memcpy(cmd_txd[device], remko_cmd[14], cmdlength);
-        remko_followme[device]=1;
+        remko_states[device].followMe=1;
       }else{
         memcpy(cmd_txd[device], remko_cmd[15], cmdlength);
-        remko_followme[device]=0;
+        remko_states[device].followMe=0;
       }
       break;
     case 4: // led
@@ -212,85 +232,74 @@ void remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
 
 // ******* Code for receiving Remko-commands ********
 
-#if RemkoRxDevices >= 1
-void ICACHE_RAM_ATTR remko_rxd_isr0() {
-  // we detected a start of communication (falling edge)
-
-  // disable interrupt
-  detachInterrupt(digitalPinToInterrupt(RemkoRxPin[0]));
-    
-  // preload with half-bittime (=275us) to read bit in the middle
-  lastBitReadTime[0]=micros()-(BitTime/2);
-
-  // start statemachine for reading
-  bitcounter_rxd[0]=0;
-  remko_readcmd_state[0] = 1; // start reading command
-}
-#endif
-
-#if RemkoRxDevices >= 2
-void ICACHE_RAM_ATTR remko_rxd_isr1() {
-  // we detected a start of communication (falling edge)
-
-  // disable interrupt
-  detachInterrupt(digitalPinToInterrupt(RemkoRxPin[1]));
-    
-  // preload with half-bittime (=275us) to read bit in the middle
-  lastBitReadTime[1]=micros()-(BitTime/2);
-
-  // start statemachine for reading
-  bitcounter_rxd[1]=0;
-  remko_readcmd_state[1] = 1; // start reading command
-}
-#endif
-
-#if RemkoRxDevices >= 3
-void ICACHE_RAM_ATTR remko_rxd_isr2() {
-  // we detected a start of communication (falling edge)
-
-  // disable interrupt
-  detachInterrupt(digitalPinToInterrupt(RemkoRxPin[2]));
-    
-  // preload with half-bittime (=275us) to read bit in the middle
-  lastBitReadTime[2]=micros()-(BitTime/2);
-
-  // start statemachine for reading
-  bitcounter_rxd[2]=0;
-  remko_readcmd_state[2] = 1; // start reading command
-}
-#endif
-
-#if RemkoRxDevices >= 4
-void ICACHE_RAM_ATTR remko_rxd_isr3() {
-  // we detected a start of communication (falling edge)
-
-  // disable interrupt
-  detachInterrupt(digitalPinToInterrupt(RemkoRxPin[3]));
-    
-  // preload with half-bittime (=275us) to read bit in the middle
-  lastBitReadTime[3]=micros()-(BitTime/2);
-
-  // start statemachine for reading
-  bitcounter_rxd[3]=0;
-  remko_readcmd_state[3] = 1; // start reading command
-}
-#endif
-
-// create array to isr-routine to use for-loops to attach/detach isr
-#if RemkoRxDevices == 4
-  void (*isr_table[4])(void) = { remko_rxd_isr0, remko_rxd_isr1, remko_rxd_isr2, remko_rxd_isr3};
-#elif RemkoRxDevices == 3
-  void (*isr_table[4])(void) = { remko_rxd_isr0, remko_rxd_isr1, remko_rxd_isr2, 0};
-#elif RemkoRxDevices == 2
-  void (*isr_table[4])(void) = { remko_rxd_isr0, remko_rxd_isr1, 0, 0};
-#elif RemkoRxDevices == 1
-  void (*isr_table[4])(void) = { remko_rxd_isr0, 0, 0, 0};
-#else
-  void (*isr_table[4])(void) = { 0, 0, 0, 0};
+#ifdef UseInterrupts
+  #if RemkoRxDevices >= 1
+  void IRAM_ATTR remko_rxd_isr_detecthighbits0() {
+    remko_rxd_isr_detecthighbits(0);
+  }
+  void IRAM_ATTR remko_rxd_isr_detectlowbits0() {
+    remko_rxd_isr_detectlowbits(0);
+  }
+  #endif
+  #if RemkoRxDevices >= 2
+  void IRAM_ATTR remko_rxd_isr_detecthighbits1() {
+    remko_rxd_isr_detecthighbits(1);
+  }
+  void IRAM_ATTR remko_rxd_isr_detectlowbits1() {
+    remko_rxd_isr_detectlowbits(1);
+  }
+  #endif
+  #if RemkoRxDevices >= 3
+  void IRAM_ATTR remko_rxd_isr_detecthighbits2() {
+    remko_rxd_isr_detecthighbits(2);
+  }
+  void IRAM_ATTR remko_rxd_isr_detectlowbits2() {
+    remko_rxd_isr_detectlowbits(2);
+  }
+  #endif
+  #if RemkoRxDevices >= 4
+  void IRAM_ATTR remko_rxd_isr_detecthighbits3() {
+    remko_rxd_isr_detecthighbits(3);
+  }
+  void IRAM_ATTR remko_rxd_isr_detectlowbits3() {
+    remko_rxd_isr_detectlowbits(3);
+  }
+  #endif
+  
+  void remko_rxd_isr_detecthighbits(uint8_t device) {
+    detachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]));
+    HighBitTime[device]=micros(); // set highbit flag
+  }
+  
+  void remko_rxd_isr_detectlowbits(uint8_t device) {
+    detachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]));
+    LowBitTime[device]=micros(); // set lowbit flag
+  }
+  
+  // create array to isr-routine to use for-loops to attach/detach isr
+  #if RemkoRxDevices == 4
+    void (*isr_table_detecthighbits[4])(void) = { remko_rxd_isr_detecthighbits0, remko_rxd_isr_detecthighbits1, remko_rxd_isr_detecthighbits2, remko_rxd_isr_detecthighbits3};
+  #elif RemkoRxDevices == 3
+    void (*isr_table_detecthighbits[3])(void) = { remko_rxd_isr_detecthighbits0, remko_rxd_isr_detecthighbits1, remko_rxd_isr_detecthighbits2};
+  #elif RemkoRxDevices == 2
+    void (*isr_table_detecthighbits[2])(void) = { remko_rxd_isr_detecthighbits0, remko_rxd_isr_detecthighbits1};
+  #elif RemkoRxDevices == 1
+    void (*isr_table_detecthighbits[1])(void) = { remko_rxd_isr_detecthighbits0};
+  #endif
+  #if RemkoRxDevices == 4
+    void (*isr_table_detectlowbits[4])(void) = { remko_rxd_isr_detectlowbits0, remko_rxd_isr_detectlowbits1, remko_rxd_isr_detectlowbits2, remko_rxd_isr_detectlowbits3};
+  #elif RemkoRxDevices == 3
+    void (*isr_table_detectlowbits[3])(void) = { remko_rxd_isr_detectlowbits0, remko_rxd_isr_detectlowbits1, remko_rxd_isr_detectlowbits2};
+  #elif RemkoRxDevices == 2
+    void (*isr_table_detectlowbits[2])(void) = { remko_rxd_isr_detectlowbits0, remko_rxd_isr_detectlowbits1};
+  #elif RemkoRxDevices == 1
+    void (*isr_table_detectlowbits[1])(void) = { remko_rxd_isr_detectlowbits0};
+  #endif
 #endif
 
 void remko_rxd_init() {
   for (int device=0;device<RemkoRxDevices;device++){
+    pinMode(RemkoRxPin[device], INPUT);
     remko_rxd_reset(device);
   }
 }
@@ -298,137 +307,223 @@ void remko_rxd_init() {
 void remko_rxd_reset(uint8_t device) {
   // reattach interrupt for next command
   bitcounter_rxd[device]=0;
-  remko_readcmd_state[device]=0; // reset statemachine for next command
-  #ifdef RemkoInvertRxD
-    attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), RISING);
+
+  #ifdef UseInterrupts
+    #ifdef RemkoInvertRxD
+      attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detecthighbits[device]), RISING);
+    #else
+      attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detecthighbits[device]), FALLING);
+    #endif
   #else
-    attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table[device]), FALLING);
+    #ifdef RemkoInvertRxD
+      lastPinState[device]=0;
+    #else
+      lastPinState[device]=1;
+     #endif
   #endif
 }
+
+boolean remko_processcmd(uint8_t device) {
+  // check header to be 0x0 0xFF 0xAE 0xBB
+  if ((cmd_rxd[device][0] != 0x00) || (cmd_rxd[device][1] != 0xFF) || (cmd_rxd[device][2] != 0xAE) || (cmd_rxd[device][3] != 0xBB)) {
+    // at least one byte of the header has unexpected content -> abort processing the command
+    return false;
+  }
+  
+  // compare cmd_rxd[device] and remko_cmd to find the received command-type
+  int8_t received_cmd_index = -1;
+  for (int i=0; i<NumberOfSupportedCmds; i++) {
+    if (memcmp(cmd_rxd[device], remko_cmd, cmdlength) == 0) {
+      // we found a matching command
+      received_cmd_index = i;
+      break;
+    }
+  }
+  
+  switch (received_cmd_index) {
+    case 0: // TurnOn
+      remko_states[device].powerState=1;
+      break;
+    case 1: // TurnOff
+      remko_states[device].powerState=0;
+      break;
+    case 2: // Auto
+      remko_states[device].opMode=0;
+      break;
+    case 3: // Cool
+      remko_states[device].opMode=1;
+      break;
+    case 4: // Dry
+      remko_states[device].opMode=2;
+      break;
+    case 5: // Heat
+      remko_states[device].opMode=3;
+      break;
+    case 6: // 17
+      remko_states[device].setPoint=17;
+      break;
+    case 7: // 18
+      remko_states[device].setPoint=18;
+      break;
+    case 8: // 19
+      remko_states[device].setPoint=19;
+      break;
+    case 9: // 20
+      remko_states[device].setPoint=20;
+      break;
+    case 10: // 21
+      remko_states[device].setPoint=21;
+      break;
+    case 11: // 22
+      remko_states[device].setPoint=22;
+      break;
+    case 12: // 23
+      remko_states[device].setPoint=23;
+      break;
+    case 13: // 24
+      remko_states[device].setPoint=24;
+      break;
+    case 14: // FollowMe on
+      remko_states[device].followMe=1;
+      break;
+    case 15: // FollowMe off
+      remko_states[device].followMe=0;
+      break;
+    case 16: // Toggle LED
+      break;
+    default: // unknown command
+      break;
+  }
+  
+  // send the new command to output, if desired
+  #ifdef MirrorRxD2TxD
+    // copy the received command to the output-buffer
+    // this will work with unknown commands, too
+    memcpy(cmd_txd[device], cmd_rxd[device], cmdlength);
+    // start bitstream-transmission
+    bitcounter_txd[device] = 0;
+    remko_sendcmd_state[device] = 1;
+  #endif
+
+  return true;
+}
+
+void remko_rxd_readhighbits(uint8_t device) {
+  // read received high-bits
+  if (bitcounter_rxd[device]==0) {
+    // nothing to do - we are at the beginning of the transmission
+  }else{
+    // check the received bits
+    uint8_t numberOfHighBits = round((HighBitTime[device] - lastBitReadTime[device])/(float)RxBitTime);
+
+    // write detected bits to command-array and increase bitcounter
+    uint8_t cmdindex = 0;
+    for (uint8_t i=bitcounter_rxd[device]; i<(bitcounter_rxd[device]+numberOfHighBits); i++) {
+      cmdindex = i/8;
+      if (cmdindex<cmdlength) {
+        bitSet(cmd_rxd[device][cmdindex], (i-cmdindex*8));
+      }
+    }
+    bitcounter_rxd[device]+=numberOfHighBits;
+  }
+
+  // prepare everything for next bits and reattach interrupt
+  lastBitReadTime[device]=micros();
+  #ifdef UseInterrupts
+    #ifdef RemkoInvertRxD
+      attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detectlowbits[device]), FALLING);
+    #else
+      attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detectlowbits[device]), RISING);
+    #endif
+  #endif
+}
+
+void remko_rxd_readlowbits(uint8_t device) {
+  // check the received bits
+  uint8_t numberOfLowBits = round((LowBitTime[device] - lastBitReadTime[device])/(float)RxBitTime);
+
+  if (bitcounter_rxd[device]==0) {
+    // searching for beginning
+    if (numberOfLowBits==8) {
+      // we found the beginning
+      bitcounter_rxd[device]=8;
+      cmd_rxd[device][0]=0;
+    }
+  }else{
+    // write detected bits to command-array and increase bitcounter
+    uint8_t cmdindex = 0;
+    for (uint8_t i=bitcounter_rxd[device]; i<(bitcounter_rxd[device]+numberOfLowBits); i++) {
+      cmdindex = i/8;
+      if (cmdindex<cmdlength) {
+        bitClear(cmd_rxd[device][cmdindex], (i-cmdindex*8));
+      }
+    }
+    bitcounter_rxd[device]+=numberOfLowBits;
+  }
+
+  // check if we have reached the end of transmission
+  if (bitcounter_rxd[device]<cmdlength*8) {
+    // prepare everything for next bits and reattach interrupt
+    lastBitReadTime[device]=micros();
+    #ifdef UseInterrupts
+      #ifdef RemkoInvertRxD
+        attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detecthighbits[device]), RISING);
+      #else
+        attachInterrupt(digitalPinToInterrupt(RemkoRxPin[device]), (*isr_table_detecthighbits[device]), FALLING);
+      #endif
+    #endif
+  }
+}
+
+#ifndef UseInterrupts
+void remko_rxd_detectbits(uint8_t device) {
+  // check for changing GPIO. Signal has 1800 baud and should be slow enough for sufficient resolution
+  if (!digitalRead(RemkoRxPin[device]) && (lastPinState[device]==1)) {
+    // detected a falling edge
+    lastPinState[device]=0;
+    #ifdef RemkoInvertRxD
+      LowBitTime[device]=micros(); // set lowbit flag
+    #else
+      HighBitTime[device]=micros(); // set highbit flag
+    #endif
+  }else if (digitalRead(RemkoRxPin[device]) && (lastPinState[device]==0)) {
+    // detected a rising edge
+    lastPinState[device]=1;
+    #ifdef RemkoInvertRxD
+      HighBitTime[device]=micros(); // set highbit flag
+    #else
+      LowBitTime[device]=micros(); // set lowbit flag
+    #endif
+  }
+}
+#endif
 
 void remko_rxd_step() {
   // read individual bits and evaluate received commands
   for (int device=0; device<RemkoRxDevices; device++) {
-    if (micros() - lastBitReadTime[device] >= BitTime) {
-      if (remko_readcmd_state[device] == 1) {
-        // statemachine is running
-        lastBitReadTime[device]+=BitTime; // jump one full bit to the right for next bit
-        remko_rxd_readbit(device); // read current bit
-      }else if (remko_readcmd_state[device] > 1) {
-        // wait 21 bytes (= ignoring second command)
-        bitcounter_rxd[device]++;
-  
-        if (bitcounter_rxd[device]>cmdlength*8) {
-          // end of second commmand
-          remko_rxd_reset(device);
-        }
-      }
+    #ifndef UseInterrupts
+      remko_rxd_detectbits(device);
+    #endif
+
+    // read received high-bits
+    if (HighBitTime[device]>0) {
+      remko_rxd_readhighbits(device);
+      HighBitTime[device]=0; // reset flag
     }
     
-    if (remko_readcmd_state[device] == 2) {
+    // read received low-bits
+    if (LowBitTime[device]>0) {
+      remko_rxd_readlowbits(device);
+      LowBitTime[device]=0; // reset flag
+    }
+
+    // check if all expected bits have been received
+    if (bitcounter_rxd[device] >= cmdlength*8) {
       // we received a new command
-      remko_readcmd_state[device] = 3; // acknowledge new command, stop statemachine
+      remko_processcmd(device);
 
-      // compare cmd_rxd[device] and remko_cmd to find the received command-type
-      int8_t received_cmd_index = -1;
-      for (int i=0; i<17; i++) {
-        if (memcmp(cmd_rxd[device], remko_cmd, cmdlength) == 0) {
-          // we found a matching command
-          received_cmd_index = i;
-          break;
-        }
-      }
-
-      switch (received_cmd_index) {
-        case 0: // TurnOn
-          remko_powerstate[device]=1;
-          break;
-        case 1: // TurnOff
-          remko_powerstate[device]=0;
-          break;
-        case 2: // Auto
-          remko_opmode[device]=0;
-          break;
-        case 3: // Cool
-          remko_opmode[device]=1;
-          break;
-        case 4: // Dry
-          remko_opmode[device]=2;
-          break;
-        case 5: // Heat
-          remko_opmode[device]=3;
-          break;
-        case 6: // 17
-          remko_setpoint[device]=17;
-          break;
-        case 7: // 18
-          remko_setpoint[device]=18;
-          break;
-        case 8: // 19
-          remko_setpoint[device]=19;
-          break;
-        case 9: // 20
-          remko_setpoint[device]=20;
-          break;
-        case 10: // 21
-          remko_setpoint[device]=21;
-          break;
-        case 11: // 22
-          remko_setpoint[device]=22;
-          break;
-        case 12: // 23
-          remko_setpoint[device]=23;
-          break;
-        case 13: // 24
-          remko_setpoint[device]=24;
-          break;
-        case 14: // FollowMe on
-          remko_followme[device]=1;
-          break;
-        case 15: // FollowMe off
-          remko_followme[device]=0;
-          break;
-        case 16: // Toggle LED
-          break;
-        default: // unknown command
-          break;
-      }
-
-      // send the new command to output, if desired
-      #ifdef MirrorRxD2TxD
-        // copy the received command to the output-buffer
-        // this will work with unknown commands, too
-        memcpy(cmd_txd[device], cmd_rxd[device], cmdlength);
-        // start bitstream-transmission
-        bitcounter_txd[device] = 0;
-        remko_sendcmd_state[device] = 1;
-      #endif
-    }
-  }
-}
-
-void remko_rxd_readbit(uint8_t device) {
-  // read current bit from GPIO
-
-  if (bitcounter_rxd[device]<cmdlength*8) {
-    // read current bit and write it to cmd
-    #ifdef RemkoInvertRxD
-      bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), !digitalRead(RemkoRxPin[device]));
-    #else
-      bitWrite(cmd_rxd[device][bitcounter_rxd[device]/8], (bitcounter_rxd[device]-(bitcounter_rxd[device]/8)*8), digitalRead(RemkoRxPin[device]));
-    #endif
-    // check for first two bytes. Should be 0x00 and 0xFF
-    if (((bitcounter_rxd[device]==7) && (cmd_rxd[device][0]!=0)) || ((bitcounter_rxd[device]==15) && (cmd_rxd[device][1]!=255))) {
-      // unexpected first or second byte
+      // reset to receive new commands
       remko_rxd_reset(device);
-      return;
     }
-
-    // increase bitcounter_rxd[device] for next bit    
-    bitcounter_rxd[device]++;
-  }else{
-    // we reached end of the current command
-    remko_readcmd_state[device]=2;
-    bitcounter_rxd[device]=0;
   }
 }

@@ -1,7 +1,7 @@
 /*************************************************************************************
 remko2mqtt Interface for ESP8266
 Destination-Hardware: NodeMCU ESP8266 with optional W5500 Ethernet-Shield
-v1.2.0 (c) 2022 Dr.-Ing. Christian Nöding
+v1.3.0 (c) 2022 Dr.-Ing. Christian Nöding
 
 I'm not related to Remko and this software is not an official part of Remko.
 It is an attempt to improve the controllability of Remko devices for private use. Don't

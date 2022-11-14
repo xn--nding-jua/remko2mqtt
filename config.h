@@ -1,5 +1,5 @@
 // general software config
-const char* versionstring = "v1.2.0 built on ";
+const char* versionstring = "v1.3.0 built on ";
 const char compile_date[] = __DATE__ " " __TIME__;
 const char* host = "remko2mqtt";
 
@@ -13,7 +13,7 @@ const char* host = "remko2mqtt";
 uint8_t RemkoTxPin[] = {5, 0, 3, 14}; // Enter the desired GPIO pins in this array
 uint8_t RemkoRxPin[] = {4, 2, 1, 12}; // Enter the desired GPIO pins in this array
 #define RemkoInvertTxD 1 // invert Tx-bits (e.g. when using a transistor with pullup-resistor)
-#define RemkoInvertRxD 0 // invert Rx-bits
+//#define RemkoInvertRxD 1 // invert Rx-bits
 
 #ifdef UseWiFi
   // we are using WiFi connection
