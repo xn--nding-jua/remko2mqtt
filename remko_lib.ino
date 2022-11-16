@@ -249,7 +249,9 @@ bool remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
       remko_states[device].powerState=0;
       break;
     case 1: // opmode
+      // just store the desired opMode. To turn on the device send desired setPoint-command
       remko_states[device].opMode=value; // 0=Cool, 1=Heat
+	  return true; // dont send command to device
       break;
     case 2: // setpoint
       if ((value>=17) && (value<=24)) {
@@ -262,9 +264,15 @@ bool remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
             memcpy(cmd_txd[device], remko_cmd[value-17+9], cmdlength); // !!!Caution: array-elements are sorted, so that value fits the correct array-index!!!
             remko_states[device].setPoint=value;
             break;
+          default:
+            // unsupported command
+            return false;
         }
       }
       break;
+    default:
+      // unsupported command
+      return false;
   }
 
   // start bitstream-transmission

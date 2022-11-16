@@ -35,16 +35,18 @@ uint8_t RemkoRxPin[] = {4, 2, 1, 12}; // Enter the desired GPIO pins in this arr
   IPAddress secondaryDNS(1, 1, 1, 1); //optional
 #endif
 
-// setup MQTT
+// setup MQTT-server
 #define mqtt_id "remko2mqtt"
 #define mqtt_server "192.168.0.41"
 #define mqtt_serverport 1883
 #define mqtt_publish_interval 60
 
+// MQTT-topics for management and debugging
+#define mqtt_topic_restart             "remko/cmd/restart"
 #define mqtt_topic_set_debuglevel      "remko/set/debuglevel"
 #define mqtt_topic_debug               "remko/debug"
-#define mqtt_topic_restart             "remko/restart"
 
+// MQTT-topics for subscribing
 #define mqtt_topic_dev0_set_poweroff   "remko/0/set/poweroff"
 #define mqtt_topic_dev0_set_opmode     "remko/0/set/opmode"
 #define mqtt_topic_dev0_set_setpoint   "remko/0/set/setpoint"
@@ -58,6 +60,7 @@ uint8_t RemkoRxPin[] = {4, 2, 1, 12}; // Enter the desired GPIO pins in this arr
 #define mqtt_topic_dev3_set_opmode     "remko/3/set/opmode"
 #define mqtt_topic_dev3_set_setpoint   "remko/3/set/setpoint"
 
+// MQTT-topics for publishing
 #define mqtt_topic_dev0_powerstate      "remko/0/powerstate"
 #define mqtt_topic_dev0_opmode          "remko/0/opmode"
 #define mqtt_topic_dev0_setpoint        "remko/0/setpoint"
