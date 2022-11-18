@@ -249,10 +249,15 @@ bool remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
       remko_states[device].powerState=0;
       break;
     case 1: // opmode
-      // just store the desired opMode. To turn on the device send desired setPoint-command
+      // store the desired opMode. if device is running send command to device
       remko_states[device].opMode=value; // 0=Cool, 1=Heat
-	  return true; // dont send command to device
-      break;
+	  
+      if (remko_states[device].powerState==0) {
+        // device is offline -> dont send command to device, so exit function
+        return true;
+        break;
+      }
+      // device is online, fall-through switch-case and send selected setpoint to device with new opMode-setting
     case 2: // setpoint
       if ((value>=17) && (value<=24)) {
         switch (remko_states[device].opMode) {
