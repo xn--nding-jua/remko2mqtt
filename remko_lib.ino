@@ -263,18 +263,16 @@ bool remko_txd_sendcmd(uint8_t device, uint8_t cmdtype, uint8_t value) {
         switch (remko_states[device].opMode) {
           case 0: // Cool
             memcpy(cmd_txd[device], remko_cmd[value-17+1], cmdlength); // !!!Caution: array-elements are sorted, so that value fits the correct array-index!!!
-			remko_states[device].powerState=1;
-            remko_states[device].setPoint=value;
             break;
           case 1: // Heat
             memcpy(cmd_txd[device], remko_cmd[value-17+9], cmdlength); // !!!Caution: array-elements are sorted, so that value fits the correct array-index!!!
-			remko_states[device].powerState=1;
-            remko_states[device].setPoint=value;
             break;
           default:
             // unsupported command
             return false;
         }
+        remko_states[device].powerState=1;
+        remko_states[device].setPoint=value;
       }
       break;
     default:
