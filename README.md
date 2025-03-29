@@ -4,6 +4,7 @@ Control your Remko Air Conditioner via MQTT using an ESP8266
 # Content
 - [Introduction](#introduction)
 - [Using the software](#software)
+- [MQTT-Commands](#mqttcommands)
 - [Information about the used communication-protocol](#information)
 - [Outlook](#outlook)
 
@@ -35,12 +36,32 @@ Future "nice-to-have" feature will be:
 
 <a name="software"></a>
 # Using the software
-To use this software with your own Remko-devices you have to compile the software using Arduino with installed ESP8266-support and PubSubClient-library. In the config.h you have to configure the software (IP-Addresses, MQTT-Server, and so on). You can choose between using WiFi or an ethernet-connection using the W5500-ethernet-shield. Furthermore you can select how many Remko-devices you'd like to use (at the moment up to four) and on which GPIO you want to output the commands. The IP-addresses and MQTT-topics can be set within the config.h, too. Finally, I've implemented an OTA-firmware-update-feature that allows you to update the firmware via the webpage. Just open the IP-address of the device with a browser, click on the button "Firmwareupgrade" and follow the instructions. A new firmware-binary can be created using Arduino using "Ctrl+Alt+S".
+To use this software with your own Remko-devices you have to compile the software using Arduino with installed ESP8266-support and PubSubClient-library. 
+
+First, copy the file config.h.template to config.h. In this config.h you have to configure the software (IP-Addresses, MQTT-Server, and so on). You can choose between using WiFi or an ethernet-connection using the W5500-ethernet-shield. Furthermore you can select how many Remko-devices you'd like to use (at the moment up to four) and on which GPIO you want to output the commands. The IP-addresses and MQTT-topics can be set within the config.h, too. Finally, I've implemented an OTA-firmware-update-feature that allows you to update the firmware via the webpage. Just open the IP-address of the device with a browser, click on the button "Firmwareupgrade" and follow the instructions. A new firmware-binary can be created using Arduino using "Ctrl+Alt+S".
 
 Via MQTT the current settings will be published. As the communication with the air-conditioner is unidirectional these values get invalid if you are using the original IR-remote-control.
 
 The ESP8266 can be connected via a simple level-shifter-circuit using a BC337 transistor (or similar):
 ![image](https://user-images.githubusercontent.com/9845353/201296096-8c356c16-f7c0-4b75-8f3c-acfa146ce493.png)
+
+<a name="mqttcommands"></a>
+# MQTT-Commands
+
+The ESP8266 subscribes to several MQTT-topics: three topics for general control and three for each of the four devices. To set device 0 to 19°C cooling, you have to send the following topic:
+```C
+remko/0/set/opmode 0
+
+remko/0/set/setpoint 19
+```
+
+To turn off the device, you send the following topic:
+```C
+remko/0/set/poweroff
+```
+
+The ESP8266 will publish several own MQTT-topics to keep the MQTT-broker and the connected clients informed about the state of the device. These topics can be configured within the config.h as well.
+
 
 <a name="information"></a>
 # Information about the used communication-protocol
